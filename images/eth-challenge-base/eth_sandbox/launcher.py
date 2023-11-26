@@ -19,6 +19,7 @@ from eth_sandbox import get_shared_secret
 HTTP_PORT = os.getenv("HTTP_PORT", "8545")
 PROXY_PORT = os.getenv("PROXY_PORT", "8545")
 PUBLIC_IP = os.getenv("PUBLIC_IP", "127.0.0.1")
+PUBLIC_PORT = os.getenv("PUBLIC_PORT", "8080")
 
 CHALLENGE_ID = os.getenv("CHALLENGE_ID", "challenge")
 ENV = os.getenv("ENV", "dev")
@@ -147,7 +148,7 @@ def new_launch_instance_action(
         print(f"it will automatically terminate in 30 minutes")
         print(f"here's some useful information")
         print(f"uuid:           {uuid}")
-        print(f"rpc endpoint:   http://{PUBLIC_IP}:{PROXY_PORT}/{uuid}")
+        print(f"rpc endpoint:   http://{PUBLIC_IP}:{PUBLIC_PORT}/{uuid}")
         print(f"private key:    {player_acct.privateKey.hex()}")
         print(f"setup contract: {setup_addr}")
         return 0
