@@ -8,10 +8,11 @@ from flask_limiter.util import get_remote_address
 import requests
 
 HTTP_PORT = os.getenv("HTTP_PORT", "8545")
-PROXY_PORT = os.getenv("PROXY_PORT", "8545")
+PROXY_PORT = os.getenv("PROXY_PORT", "8080")
 
 app = Flask(__name__)
 app.secret_key = randbytes(32)
+app.config['SESSION_COOKIE_NAME'] = "blockchain_"+randbytes(6).hex()
 
 limiter = Limiter(
     get_remote_address,
