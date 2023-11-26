@@ -6,7 +6,6 @@ services:
       context: .
     ports:
       - "${PUBLIC_PORT}:8080"
-      - 31337:31337
     environment:
       - CHALLENGE_ID=${CHALLENGE_ID}
       - PUBLIC_IP=${PUBLIC_HOST}
