@@ -97,22 +97,7 @@
             <strong>Credentials:</strong>
             <table class="table mt-2">
                 <tbody>
-                    <tr>
-                        <td><strong>UUID:</strong></td>
-                        <td id="uuid"></td>
-                    </tr>
-                    <tr>
-                        <td><strong>RPC Endpoint:</strong></td>
-                        <td id="rpcEndpoint"></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Private Key:</strong></td>
-                        <td id="privateKey"></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Setup Contract:</strong></td>
-                        <td id="setupContract"></td>
-                    </tr>
+
                 </tbody>
             </table>
         </div>
@@ -196,16 +181,30 @@
         }
 
         function displayCredentials(credentials) {
-            // Update the table cells with credential values
-            document.getElementById("uuid").textContent = credentials.uuid;
-            document.getElementById("rpcEndpoint").textContent = credentials.rpc_endpoint;
-            document.getElementById("privateKey").textContent = credentials.private_key;
-            document.getElementById("setupContract").textContent = credentials.setup_contract;
+            // Exclude "message" from the keys
+            const keys = Object.keys(credentials).filter(key => key !== 'message');
+
+            // Reference to the table body
+            const tableBody = document.querySelector("#credsDisplay tbody");
+
+            // Clear existing rows
+            tableBody.innerHTML = "";
+
+            // Iterate over the keys and add rows to the table
+            keys.forEach(key => {
+                const row = tableBody.insertRow();
+                const cellKey = row.insertCell(0);
+                const cellValue = row.insertCell(1);
+
+                cellKey.textContent = key.charAt(0).toUpperCase() + key.slice(1); // Capitalize the key
+                cellValue.textContent = credentials[key];
+            });
 
             // Show the credentials div
             const credsDisplay = document.getElementById("credsDisplay");
             credsDisplay.style.display = "block";
         }
+
 
         function showError(message) {
             const errorAlert = document.getElementById("errorAlert");

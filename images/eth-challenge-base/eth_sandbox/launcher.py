@@ -37,20 +37,16 @@ class Ticket:
 
 def check_ticket(ticket: str) -> Ticket:
     if len(ticket) > 100 or len(ticket) < 8:
-        print('invalid ticket length')
-        return None
+        raise Exception('invalid ticket length')
     if not all(c in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' for c in ticket):
-        print('ticket must be alphanumeric')
-        return None
+        raise Exception('ticket must be alphanumeric')
     m = hashlib.sha256()
     m.update(ticket.encode('ascii'))
     digest1 = m.digest()
     m = hashlib.sha256()
     m.update(digest1 + ticket.encode('ascii'))
     if not m.hexdigest().startswith('0000000'):
-        print('PoW: sha256(sha256(ticket) + ticket) must start with 0000000 (digest was ' + m.hexdigest() + ')')
-        return None
-    print('This ticket is your TEAM SECRET. Do NOT SHARE IT!')
+        raise Exception('PoW: sha256(sha256(ticket) + ticket) must start with 0000000 (digest was ' + m.hexdigest() + ')')
     return Ticket(challenge_id=CHALLENGE_ID, team_id=ticket)
 
 
@@ -80,7 +76,6 @@ def sendTransaction(web3: Web3, tx: Dict) -> Optional[TxReceipt]:
 
     if rcpt.status != 1:
         raise Exception("failed to send transaction")
-
     return rcpt
 
 
@@ -88,14 +83,12 @@ def new_launch_instance_action(
     do_deploy: Callable[[Web3, str], str],
 ):
     def action() -> int:
-        ticket = check_ticket(input("ticket please: "))
+        ticket = check_ticket(input())
         if not ticket:
-            print("invalid ticket!")
-            return 1
+            raise Exception("invalid ticket!")
 
         if ticket.challenge_id != CHALLENGE_ID:
-            print("invalid ticket!")
-            return 1
+            raise Exception("invalid ticket!")
 
         data = requests.post(
             f"http://127.0.0.1:{HTTP_PORT}/new",
@@ -111,8 +104,7 @@ def new_launch_instance_action(
         ).json()
 
         if data["ok"] == False:
-            print(data["message"])
-            return 1
+            raise Exception(data["message"])
 
         uuid = data["uuid"]
         mnemonic = data["mnemonic"]
@@ -142,30 +134,25 @@ def new_launch_instance_action(
                     }
                 )
             )
-
-        print()
-        print(f"your private blockchain has been deployed")
-        print(f"it will automatically terminate in 30 minutes")
-        print(f"here's some useful information")
-        print(f"uuid:           {uuid}")
-        print(f"rpc endpoint:   http://{PUBLIC_IP}:{PUBLIC_PORT}/{uuid}")
-        print(f"private key:    {player_acct.privateKey.hex()}")
-        print(f"setup contract: {setup_addr}")
-        return 0
-
+        return {
+            "UUID":uuid,
+            "RPC Endpoint": f"http://{PUBLIC_IP}:{PUBLIC_PORT}/{uuid}",
+            "Private Key": player_acct.privateKey.hex(),
+            "Wallet": player_acct._address,
+            "Setup Contract": setup_addr,
+            "message": "your private blockchain has been deployed, it will automatically terminate in 30 minutes"
+        }
     return Action(name="launch new instance", handler=action)
 
 
 def new_kill_instance_action():
     def action() -> int:
-        ticket = check_ticket(input("ticket please: "))
+        ticket = check_ticket(input())
         if not ticket:
-            print("invalid ticket!")
-            return 1
+            raise Exception("invalid ticket!")
 
         if ticket.challenge_id != CHALLENGE_ID:
-            print("invalid ticket!")
-            return 1
+            raise Exception("invalid ticket!")
 
         data = requests.post(
             f"http://127.0.0.1:{HTTP_PORT}/kill",
@@ -180,8 +167,7 @@ def new_kill_instance_action():
             ),
         ).json()
 
-        print(data["message"])
-        return 1
+        return {'message':data["message"]}
 
     return Action(name="kill instance", handler=action)
 
@@ -199,41 +185,36 @@ def new_get_flag_action(
     checker: Callable[[Web3, str], bool] = is_solved_checker,
 ):
     def action() -> int:
-        ticket = check_ticket(input("ticket please: "))
+        ticket = check_ticket(input())
         if not ticket:
-            print("invalid ticket!")
-            return 1
+            raise Exception("invalid ticket!")
 
         if ticket.challenge_id != CHALLENGE_ID:
-            print("invalid ticket!")
-            return 1
+            raise Exception("invalid ticket!")
 
         try:
             with open(f"/tmp/{ticket.team_id}", "r") as f:
                 data = json.loads(f.read())
         except:
-            print("bad ticket")
-            return 1
+            raise Exception("bad ticket")
 
         web3 = Web3(Web3.HTTPProvider(f"http://127.0.0.1:{HTTP_PORT}/{data['uuid']}"))
 
         if not checker(web3, data['address']):
-            print("are you sure you solved it?")
-            return 1
+            raise Exception("are you sure you solved it?")
 
-        print(FLAG)
-        return 0
+        return {"message":FLAG}
 
     return Action(name="get flag", handler=action)
 
 
 def run_launcher(actions: List[Action]):
-    for i, action in enumerate(actions):
-        print(f"{i+1} - {action.name}")
+    action = int(input()) - 1
+    try:
+        if action < 0 or action >= len(actions):
+            print({"error":"can you not"})
+            exit(1)
 
-    action = int(input("action? ")) - 1
-    if action < 0 or action >= len(actions):
-        print("can you not")
-        exit(1)
-
-    exit(actions[action].handler())
+        print(actions[action].handler())
+    except Exception as e:
+        print({"error": str(e)})

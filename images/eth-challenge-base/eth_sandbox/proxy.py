@@ -1,3 +1,4 @@
+import json
 import os
 import socket
 from flask import Flask, Response, request, session, send_file
@@ -41,17 +42,13 @@ def send_action_and_ticket(action, ticket):
         s.sendall(f"{action}\n".encode())
         s.sendall(f"{ticket}\n".encode())
 
-        data = recvlines(s, 5)
-        response = data[4].decode()
-        if response != "":
-            raise Exception(response)
-        data = recvlines(s, 7)
-        msg = (data[1] + b" " + data[2]).decode()
-        uuid = data[3].split()[-1].decode()
-        rpc_endpoint = data[4].split()[-1].decode()
-        private_key = data[5].split()[-1].decode()
-        setup_contract = data[6].split()[-1].decode()
-    return uuid, rpc_endpoint, private_key, setup_contract, msg
+        data = recvlines(s, 1)
+        response:dict = eval(data[0].decode())
+        if error:=response.get("error"):
+            raise Exception(error)
+        print(data)
+        print(response)
+    return response
 
 @app.get("/ticket/<string:ticket>")
 def save_ticket(ticket):
@@ -66,16 +63,8 @@ def default_action(action):
         creds = send_action_and_ticket(action, ticket)
     except Exception as e:
         return message(str(e)), 500
-    uuid, rpc_endpoint, private_key, setup_contract, msg = creds
-    data = {
-        "uuid": uuid,
-        "rpc_endpoint": rpc_endpoint,
-        "private_key": private_key,
-        "setup_contract": setup_contract,
-        "message": msg
-    }
-    session["data"] = data
-    return data
+    session["data"] = creds
+    return creds
 
 @app.get("/instance/data")
 def get_instance_data():
@@ -115,4 +104,4 @@ def download_solver_pow():
     return send_file(file_path, as_attachment=True)
 
 if __name__ == "__main__":
-    app.run("0.0.0.0", PROXY_PORT)
+    app.run("0.0.0.0", PROXY_PORT, debug=True)
