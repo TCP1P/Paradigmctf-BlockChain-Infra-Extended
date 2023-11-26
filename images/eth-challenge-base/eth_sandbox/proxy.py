@@ -46,8 +46,6 @@ def send_action_and_ticket(action, ticket):
         response:dict = eval(data[0].decode())
         if error:=response.get("error"):
             raise Exception(error)
-        print(data)
-        print(response)
     return response
 
 @app.get("/ticket/<string:ticket>")
