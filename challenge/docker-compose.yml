@@ -1,0 +1,16 @@
+name: paradigm-ctf-challenge
+services:
+  launcher:
+    image: challenge
+    build:
+      context: .
+    ports:
+      - "${PUBLIC_PORT}:8080"
+    environment:
+      - CHALLENGE_ID=${CHALLENGE_ID}
+      - SHARED_SECRET=${SECRET}
+      - PUBLIC_IP=${PUBLIC_HOST}
+      - FLAG=${FLAG}
+      - HTTP_PORT=8545
+      - PROXY_PORT=8080
+      - ENV=production

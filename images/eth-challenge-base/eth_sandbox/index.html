@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ethernet Launcher</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <style>
+        .container {
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        form {
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .btn-primary,
+        .btn-success,
+        .btn-danger,
+        .btn-warning {
+            width: 100%;
+        }
+
+        .spinner-border {
+            margin: 20px auto;
+            display: block;
+        }
+
+        .alert {
+            margin-top: 20px;
+            display: none;
+        }
+
+        #credsDisplay {
+            margin-top: 20px;
+            display: block;
+        }
+
+        table {
+            width: 100%;
+        }
+
+        table td {
+            padding: 8px;
+        }
+    </style>
+</head>
+
+<body data-bs-theme="dark" class="mt-5 d-flex flex-column align-items-center gap-2">
+    <h1 class="mb-4">Ethernet Launcher</h1>
+
+    <div class="row container">
+        <div class="col-lg-4 col-md-6 col-sm-12">
+            <form id="ticketForm">
+                <label for="ticketInput" class="form-label">Enter Ticket:</label>
+                <input type="text" class="form-control" id="ticketInput" placeholder="Ticket">
+            </form>
+
+            <div class="mt-4">
+                <button type="button" class="btn btn-primary" onclick="saveTicket()">Save Ticket</button>
+            </div>
+
+            <div class="mt-4 row">
+                <div class="col-md-4 col-sm-12">
+                    <button type="button" class="btn btn-success" onclick="launchInstance()">Launch</button>
+                </div>
+                <div class="col-md-4 col-sm-12">
+                    <button type="button" class="btn btn-danger" onclick="killInstance()">Kill</button>
+                </div>
+                <div class="col-md-4 col-sm-12">
+                    <button type="button" class="btn btn-warning" onclick="flagInstance()">Flag</button>
+                </div>
+            </div>
+
+            <div class="spinner-border text-primary" role="status" id="loadingSpinner" style="display: none;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+
+            <div class="alert alert-danger mt-3" id="errorAlert" style="display: none;"></div>
+            <div class="alert alert-success mt-3" id="successAlert" style="display: none;"></div>
+        </div>
+
+        <div class="col-lg-8 col-md-6 col-sm-12" id="credsDisplay">
+            <strong>Credentials:</strong>
+            <table class="table mt-2">
+                <tbody>
+                    <tr>
+                        <td><strong>UUID:</strong></td>
+                        <td id="uuid"></td>
+                    </tr>
+                    <tr>
+                        <td><strong>RPC Endpoint:</strong></td>
+                        <td id="rpcEndpoint"></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Private Key:</strong></td>
+                        <td id="privateKey"></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Setup Contract:</strong></td>
+                        <td id="setupContract"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+        crossorigin="anonymous"></script>
+    <script>
+        // Check if data exists in the session on page load
+        document.addEventListener('DOMContentLoaded', async function () {
+            const response = await fetch('/instance/data');
+            const data = await response.json();
+            if (Object.keys(data).length > 0) {
+                displayCredentials(data);
+            }
+        });
+
+        async function saveTicket() {
+            showLoading();
+            var ticket = document.getElementById("ticketInput").value;
+            try {
+                const response = await fetch(`/ticket/${ticket}`);
+                const data = await response.json();
+                if (response.ok) {
+                    showSuccess(data.message);
+                } else {
+                    showError(data.message);
+                }
+            } catch (error) {
+                showError("Error saving ticket. Please try again.");
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function sendAction(action) {
+            showLoading();
+            let response = null
+            try {
+                response = await fetch(`/${action}`, { method: 'GET' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    showSuccess(data.message);
+                    displayCredentials(data);
+                } else {
+                    showError(data.message);
+                }
+            } catch (error) {
+                if (response.status === 429) {
+                    showError("Rate limit exceeded. Please try again later.");
+                } else {
+                    showError(`Error ${action} instance. Please try again.`);
+                }
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function showLoading() {
+            const loadingSpinner = document.getElementById("loadingSpinner");
+            loadingSpinner.style.display = "block";
+        }
+
+        function hideLoading() {
+            const loadingSpinner = document.getElementById("loadingSpinner");
+            loadingSpinner.style.display = "none";
+        }
+
+        function showSuccess(message) {
+            const successAlert = document.getElementById("successAlert");
+            successAlert.textContent = message;
+            successAlert.style.display = "block";
+            setTimeout(() => {
+                successAlert.style.display = "none";
+            }, 5000);  // Hide the alert after 5 seconds
+        }
+
+        function displayCredentials(credentials) {
+            // Update the table cells with credential values
+            document.getElementById("uuid").textContent = credentials.uuid;
+            document.getElementById("rpcEndpoint").textContent = credentials.rpc_endpoint;
+            document.getElementById("privateKey").textContent = credentials.private_key;
+            document.getElementById("setupContract").textContent = credentials.setup_contract;
+
+            // Show the credentials div
+            const credsDisplay = document.getElementById("credsDisplay");
+            credsDisplay.style.display = "block";
+        }
+
+        function showError(message) {
+            const errorAlert = document.getElementById("errorAlert");
+            errorAlert.textContent = message;
+            errorAlert.style.display = "block";
+            setTimeout(() => {
+                errorAlert.style.display = "none";
+            }, 5000);  // Hide the alert after 5 seconds
+        }
+
+        function launchInstance() {
+            sendAction('instance/launch');
+        }
+
+        function killInstance() {
+            // Clear the content of table cells
+            document.getElementById("uuid").textContent = "";
+            document.getElementById("rpcEndpoint").textContent = "";
+            document.getElementById("privateKey").textContent = "";
+            document.getElementById("setupContract").textContent = "";
+
+            // Hide the credentials div
+            const credsDisplay = document.getElementById("credsDisplay");
+
+            // Send the kill action
+            sendAction('instance/kill');
+        }
+
+        function flagInstance() {
+            sendAction('instance/flag');
+        }
+    </script>
+</body>
+
+</html>
