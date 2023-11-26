@@ -1,4 +1,3 @@
-import json
 import os
 import socket
 from flask import Flask, Response, request, session, send_file
@@ -44,6 +43,7 @@ def send_action_and_ticket(action, ticket):
 
         data = recvlines(s, 1)
         response:dict = eval(data[0].decode())
+        print(response)
         if error:=response.get("error"):
             raise Exception(error)
     return response

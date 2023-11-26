@@ -181,28 +181,17 @@
         }
 
         function displayCredentials(credentials) {
-            // Exclude "message" from the keys
             const keys = Object.keys(credentials).filter(key => key !== 'message');
-
-            // Reference to the table body
             const tableBody = document.querySelector("#credsDisplay tbody");
-
-            // Clear existing rows
             tableBody.innerHTML = "";
-
-            // Iterate over the keys and add rows to the table
             keys.forEach(key => {
                 const row = tableBody.insertRow();
                 const cellKey = row.insertCell(0);
                 const cellValue = row.insertCell(1);
 
-                cellKey.textContent = key.charAt(0).toUpperCase() + key.slice(1); // Capitalize the key
-                cellValue.textContent = credentials[key];
+                cellKey.textContent = Object.keys(credentials[key])[0]; // Capitalize the key
+                cellValue.textContent = Object.values(credentials[key])[0];
             });
-
-            // Show the credentials div
-            const credsDisplay = document.getElementById("credsDisplay");
-            credsDisplay.style.display = "block";
         }
 
 
@@ -220,14 +209,8 @@
         }
 
         function killInstance() {
-            // Clear the content of table cells
-            document.getElementById("uuid").textContent = "";
-            document.getElementById("rpcEndpoint").textContent = "";
-            document.getElementById("privateKey").textContent = "";
-            document.getElementById("setupContract").textContent = "";
-
-            // Hide the credentials div
-            const credsDisplay = document.getElementById("credsDisplay");
+            const tableBody = document.querySelector("#credsDisplay tbody");
+            tableBody.innerHTML = ""
 
             // Send the kill action
             sendAction('instance/kill');

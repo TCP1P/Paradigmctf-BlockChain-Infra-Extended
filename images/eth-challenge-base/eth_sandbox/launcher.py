@@ -135,11 +135,11 @@ def new_launch_instance_action(
                 )
             )
         return {
-            "UUID":uuid,
-            "RPC Endpoint": f"http://{PUBLIC_IP}:{PUBLIC_PORT}/{uuid}",
-            "Private Key": player_acct.privateKey.hex(),
-            "Wallet": player_acct._address,
-            "Setup Contract": setup_addr,
+            '0': {"UUID":uuid},
+            '1': {"RPC Endpoint": f"http://{PUBLIC_IP}:{PUBLIC_PORT}/{uuid}"},
+            '2': {"Private Key": player_acct.privateKey.hex()},
+            '3': {"Setup Contract": setup_addr},
+            '4': {"Wallet": player_acct._address},
             "message": "your private blockchain has been deployed, it will automatically terminate in 30 minutes"
         }
     return Action(name="launch new instance", handler=action)

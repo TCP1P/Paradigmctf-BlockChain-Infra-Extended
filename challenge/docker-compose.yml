@@ -1,11 +1,12 @@
-name: paradigm-ctf-challenge
+version: "3"
+
 services:
   launcher:
-    image: challenge
     build:
       context: .
     ports:
       - "${PUBLIC_PORT}:8080"
+      - 31337:31337
     environment:
       - CHALLENGE_ID=${CHALLENGE_ID}
       - PUBLIC_IP=${PUBLIC_HOST}
@@ -14,3 +15,7 @@ services:
       - HTTP_PORT=8545
       - PROXY_PORT=8080
       - ENV=production
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
