@@ -10,6 +10,7 @@ services:
       - CHALLENGE_ID=${CHALLENGE_ID}
       - SHARED_SECRET=${SECRET}
       - PUBLIC_IP=${PUBLIC_HOST}
+      - PUBLIC_PORT=${PUBLIC_PORT}
       - FLAG=${FLAG}
       - HTTP_PORT=8545
       - PROXY_PORT=8080
