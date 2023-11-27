@@ -1,6 +1,6 @@
 # Paradigmctf BlockChain Infra Extended
 
-This repository contains the setup for Paradigm CTF blockchain challenges based on the original repository from [paradigmxyz](https://github.com/paradigmxyz/paradigm-ctf-infrastructure). We've introduced new features, including a web interface and additional challenge setup.
+This repository contains the setup for Paradigm CTF blockchain challenges based on the original repository from [paradigmxyz](https://github.com/paradigmxyz/paradigm-ctf-infrastructure/tree/master). We've introduced new features, including a web interface and additional challenge setup.
 
 ## Build Docker Images
 
