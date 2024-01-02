@@ -1,5 +1,5 @@
 import os
-import socket
+import re
 from flask import Flask, Response, request, session, send_file
 from flask_limiter import Limiter
 from flask_cors import cross_origin
@@ -8,6 +8,7 @@ from flask_limiter.util import get_remote_address
 import requests
 
 HTTP_PORT = os.getenv("HTTP_PORT", "8545")
+LAUNCHER_PORT = os.getenv("LAUNCHER_PORT", "8546")
 PROXY_PORT = os.getenv("PROXY_PORT", "8080")
 
 app = Flask(__name__)
@@ -21,69 +22,31 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
+
+def is_alphanumeric(text):
+    pattern = r'^[a-zA-Z0-9]+$'
+    return bool(re.match(pattern, text))
+
 def message(msg):
     return {"message": msg}
-
-def recvline(s: socket.socket):
-    data = b""
-    while (needle := s.recv(1)) != b"\n":
-        data += needle
-    return data
-
-def recvlines(s: socket.socket, num):
-    result: list[bytes] = []
-    for _ in range(num):
-        result.append(recvline(s))
-    return result
-
-def send_action_and_ticket(action, ticket):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect(('127.0.0.1', 31337))
-        s.sendall(f"{action}\n".encode())
-        s.sendall(f"{ticket}\n".encode())
-
-        data = recvlines(s, 1)
-        response:dict = eval(data[0].decode())
-        print(response)
-        if error:=response.get("error"):
-            raise Exception(error)
-    return response
 
 @app.get("/ticket/<string:ticket>")
 def save_ticket(ticket):
     session["ticket"] = ticket
     return message("ticket saved")
 
-def default_action(action):
-    ticket = session.get("ticket")
-    if not ticket:
-        return message("Please add a ticket"), 400
-    try:
-        creds = send_action_and_ticket(action, ticket)
-    except Exception as e:
-        return message(str(e)), 500
-    session["data"] = creds
-    return creds
-
 @app.get("/instance/data")
 def get_instance_data():
     return session.get("data", {})
 
-@app.get("/instance/launch")
+@app.get("/instance/<string:path>")
 @limiter.limit("10 per minute")
-def launch():
-    return default_action(1)
-
-@app.get("/instance/kill")
-@limiter.limit("10 per minute")
-def kill():
-    session["data"] = {}
-    return default_action(2)
-
-@app.get("/instance/flag")
-@limiter.limit("10 per minute")
-def flag():
-    return default_action(3)
+def launch(path):
+    if not is_alphanumeric(path):
+        return message("nope")
+    resp = requests.get(f"http://127.0.0.1:{LAUNCHER_PORT}/{path}", params={"ticket":session.get("ticket")})
+    response = Response(resp.content, resp.status_code, resp.raw.headers.items())
+    return response
 
 @app.get("/")
 def home():
@@ -92,6 +55,8 @@ def home():
 @app.route("/<string:uuid>", methods=["POST"])
 @cross_origin()
 def proxy(uuid):
+    if not is_alphanumeric(uuid):
+        return message("nope")
     body = request.get_json()
     resp = requests.post(f"http://127.0.0.1:{HTTP_PORT}/{uuid}", json=body)
     response = Response(resp.content, resp.status_code, resp.raw.headers.items())

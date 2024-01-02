@@ -1,29 +1,21 @@
+FROM gcr.io/paradigmxyz/ctf/eth-deps:latest as deps
 FROM gcr.io/paradigmxyz/ctf/base:latest
 
 ENV HTTP_PORT=8545
 ENV PROXY_PORT=8080
 
-RUN true \
-    && curl -L https://foundry.paradigm.xyz | bash \
-    && bash -c "source /root/.bashrc && foundryup" \
-    && chmod 755 -R /root \
-    && true
-
-RUN apt-get update && \
-    apt-get install -y dos2unix && \
-    rm -rf /var/lib/apt/lists/*
-
-RUN mkdir /tmp/init && \
-    cd /tmp/init && \
-    /root/.foundry/bin/forge init && \
-    /root/.foundry/bin/forge test && \
-    rm -rf /tmp/init
-
-COPY 98-start-gunicorn /startup
+COPY --from=deps /root/.foundry/* /bin/
+COPY 96-start-launcher /startup
 COPY 97-start-proxy /startup
+COPY 98-start-gunicorn /startup
 
-RUN dos2unix /startup/98-start-gunicorn
-RUN dos2unix /startup/97-start-proxy
+# Uncomment the following lines to install dos2unix if needed
+# RUN dos2unix /startup/98-start-gunicorn
+# RUN dos2unix /startup/97-start-proxy
+# RUN apt-get update && \
+#     apt-get install -y dos2unix && \
+#     rm -rf /var/lib/apt/lists/*
+
 
 COPY eth_sandbox /usr/lib/python/eth_sandbox
 

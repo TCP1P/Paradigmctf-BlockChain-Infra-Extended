@@ -112,7 +112,7 @@
     <script>
         // Check if data exists in the session on page load
         document.addEventListener('DOMContentLoaded', async function () {
-            const response = await fetch('/instance/data');
+            const response = await fetch('/data');
             const data = await response.json();
             if (Object.keys(data).length > 0) {
                 displayCredentials(data);
@@ -128,7 +128,7 @@
                 if (response.ok) {
                     showSuccess(data.message);
                 } else {
-                    showError(data.message);
+                    showError(data.error);
                 }
             } catch (error) {
                 showError("Error saving ticket. Please try again.");
@@ -148,7 +148,7 @@
                     showSuccess(data.message);
                     displayCredentials(data);
                 } else {
-                    showError(data.message);
+                    showError(data.error);
                 }
             } catch (error) {
                 if (response.status === 429) {
@@ -175,9 +175,6 @@
             const successAlert = document.getElementById("successAlert");
             successAlert.textContent = message;
             successAlert.style.display = "block";
-            setTimeout(() => {
-                successAlert.style.display = "none";
-            }, 5000);  // Hide the alert after 5 seconds
         }
 
         function displayCredentials(credentials) {

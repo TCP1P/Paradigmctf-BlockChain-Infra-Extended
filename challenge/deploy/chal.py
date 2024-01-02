@@ -14,8 +14,4 @@ def deploy(web3: Web3, deployer_address: str, player_address: str) -> str:
 
     return rcpt.contractAddress
 
-eth_sandbox.run_launcher([
-    eth_sandbox.new_launch_instance_action(deploy),
-    eth_sandbox.new_kill_instance_action(),
-    eth_sandbox.new_get_flag_action() # the implementation of this calls isSolved() on Setup contract
-])
+app = eth_sandbox.run_launcher(deploy)

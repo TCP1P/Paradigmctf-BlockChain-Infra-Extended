@@ -1,23 +1,22 @@
 import hashlib
 import json
 import os
-import random
 import string
 import time
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional
-from uuid import UUID
 
 import requests
 from eth_account import Account
 from web3 import Web3
 from web3.exceptions import TransactionNotFound
 from web3.types import TxReceipt
-
 from eth_sandbox import get_shared_secret
+from flask import Flask, jsonify, request
 
 HTTP_PORT = os.getenv("HTTP_PORT", "8545")
-PROXY_PORT = os.getenv("PROXY_PORT", "8545")
+LAUNCHER_PORT = os.getenv("LAUNCHER_PORT", "8546")
+PROXY_PORT = os.getenv("PROXY_PORT", "8547")
 PUBLIC_IP = os.getenv("PUBLIC_IP", "127.0.0.1")
 PUBLIC_PORT = os.getenv("PUBLIC_PORT", "8080")
 
@@ -36,6 +35,8 @@ class Ticket:
 
 
 def check_ticket(ticket: str) -> Ticket:
+    if os.environ.get("ALLOW_RANDOM_TICKET"):
+        return Ticket(challenge_id=CHALLENGE_ID, team_id=ticket)
     if len(ticket) > 100 or len(ticket) < 8:
         raise Exception('invalid ticket length')
     if not all(c in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' for c in ticket):
@@ -82,8 +83,9 @@ def sendTransaction(web3: Web3, tx: Dict) -> Optional[TxReceipt]:
 def new_launch_instance_action(
     do_deploy: Callable[[Web3, str], str],
 ):
-    def action() -> int:
-        ticket = check_ticket(input())
+    def action():
+        ticket = request.args.get("ticket")
+        ticket = check_ticket(ticket)
         if not ticket:
             raise Exception("invalid ticket!")
 
@@ -142,34 +144,32 @@ def new_launch_instance_action(
             '4': {"Wallet": player_acct._address},
             "message": "your private blockchain has been deployed, it will automatically terminate in 30 minutes"
         }
-    return Action(name="launch new instance", handler=action)
+    return action
 
 
 def new_kill_instance_action():
-    def action() -> int:
-        ticket = check_ticket(input())
-        if not ticket:
-            raise Exception("invalid ticket!")
+    ticket = request.args.get("ticket")
+    ticket = check_ticket(ticket)
+    if not ticket:
+        raise Exception("invalid ticket!")
 
-        if ticket.challenge_id != CHALLENGE_ID:
-            raise Exception("invalid ticket!")
+    if ticket.challenge_id != CHALLENGE_ID:
+        raise Exception("invalid ticket!")
 
-        data = requests.post(
-            f"http://127.0.0.1:{HTTP_PORT}/kill",
-            headers={
-                "Authorization": f"Bearer {get_shared_secret()}",
-                "Content-Type": "application/json",
-            },
-            data=json.dumps(
-                {
-                    "team_id": ticket.team_id,
-                }
-            ),
-        ).json()
+    data = requests.post(
+        f"http://127.0.0.1:{HTTP_PORT}/kill",
+        headers={
+            "Authorization": f"Bearer {get_shared_secret()}",
+            "Content-Type": "application/json",
+        },
+        data=json.dumps(
+            {
+                "team_id": ticket.team_id,
+            }
+        ),
+    ).json()
 
-        return {'message':data["message"]}
-
-    return Action(name="kill instance", handler=action)
+    return {'message':data["message"]}
 
 def is_solved_checker(web3: Web3, addr: str) -> bool:
     result = web3.eth.call(
@@ -181,40 +181,36 @@ def is_solved_checker(web3: Web3, addr: str) -> bool:
     return int(result.hex(), 16) == 1
 
 
-def new_get_flag_action(
-    checker: Callable[[Web3, str], bool] = is_solved_checker,
-):
-    def action() -> int:
-        ticket = check_ticket(input())
-        if not ticket:
-            raise Exception("invalid ticket!")
-
-        if ticket.challenge_id != CHALLENGE_ID:
-            raise Exception("invalid ticket!")
-
-        try:
-            with open(f"/tmp/{ticket.team_id}", "r") as f:
-                data = json.loads(f.read())
-        except:
-            raise Exception("bad ticket")
-
-        web3 = Web3(Web3.HTTPProvider(f"http://127.0.0.1:{HTTP_PORT}/{data['uuid']}"))
-
-        if not checker(web3, data['address']):
-            raise Exception("are you sure you solved it?")
-
-        return {"message":FLAG}
-
-    return Action(name="get flag", handler=action)
-
-
-def run_launcher(actions: List[Action]):
-    action = int(input()) - 1
+def new_get_flag_action():
+    ticket = request.args.get("ticket")
+    ticket = check_ticket(ticket)
+    if not ticket:
+        raise Exception("invalid ticket!")
+    if ticket.challenge_id != CHALLENGE_ID:
+        raise Exception("invalid ticket!")
     try:
-        if action < 0 or action >= len(actions):
-            print({"error":"can you not"})
-            exit(1)
+        with open(f"/tmp/{ticket.team_id}", "r") as f:
+            data = json.loads(f.read())
+    except:
+        raise Exception("bad ticket")
 
-        print(actions[action].handler())
-    except Exception as e:
-        print({"error": str(e)})
+    web3 = Web3(Web3.HTTPProvider(f"http://127.0.0.1:{HTTP_PORT}/{data['uuid']}"))
+
+    if not is_solved_checker(web3, data['address']):
+        raise Exception("are you sure you solved it?")
+
+    return {"message": FLAG}
+
+def handle_error(e):
+    response = jsonify(error=str(e))
+    response.status_code = 500
+    return response
+
+def run_launcher(do_deploy: Callable[[Web3, str], str]):
+    app = Flask(__name__)
+    app.get("/flag")(new_get_flag_action)
+    app.get("/kill")(new_kill_instance_action)
+    app.get("/launch")(new_launch_instance_action(do_deploy))
+    app.errorhandler(Exception)(handle_error)
+    return app
+

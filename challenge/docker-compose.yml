@@ -13,7 +13,9 @@ services:
       - FLAG=${FLAG}
       - HTTP_PORT=8545
       - PROXY_PORT=8080
+      - LAUNCHER_PORT=8081
       - ENV=production
+      - ALLOW_RANDOM_TICKET=true
     deploy:
       resources:
         limits:

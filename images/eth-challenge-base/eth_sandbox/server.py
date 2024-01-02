@@ -86,7 +86,7 @@ def launch_node(team_id: str) -> Dict:
 
     proc = subprocess.Popen(
         args=[
-            "/root/.foundry/bin/anvil",
+            "anvil",
             "--accounts",
             "2",  # first account is the deployer, second account is for the user
             "--balance",
@@ -104,6 +104,7 @@ def launch_node(team_id: str) -> Dict:
 
     web3 = Web3(Web3.HTTPProvider(f"http://127.0.0.1:{port}"))
     while True:
+        print("Waiting for the foundry to properly start...", file=sys.stderr)
         if proc.poll() is not None:
             return None
         if web3.isConnected():
