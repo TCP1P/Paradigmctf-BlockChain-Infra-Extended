@@ -9,6 +9,10 @@ RUN true \
     && chmod 755 -R /root \
     && true
 
+RUN apt-get update && \
+    apt-get install -y dos2unix && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN mkdir /tmp/init && \
     cd /tmp/init && \
     /root/.foundry/bin/forge init && \
@@ -17,6 +21,9 @@ RUN mkdir /tmp/init && \
 
 COPY 98-start-gunicorn /startup
 COPY 97-start-proxy /startup
+
+RUN dos2unix /startup/98-start-gunicorn
+RUN dos2unix /startup/97-start-proxy
 
 COPY eth_sandbox /usr/lib/python/eth_sandbox
 
