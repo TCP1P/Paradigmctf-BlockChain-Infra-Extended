@@ -26,10 +26,21 @@ RUN mkdir /tmp/init && \
     /root/.foundry/bin/forge test && \
     rm -rf /tmp/init
 
+# Install dos2unix
+RUN apt-get update && \
+    apt-get install -y dos2unix && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY 00-create-xinetd-service /startup
 COPY 99-start-xinetd /startup
 COPY handler.sh /home/ctf/handler.sh
 COPY entrypoint.sh /entrypoint.sh
 
+RUN chmod +x /entrypoint.sh
+RUN dos2unix /entrypoint.sh
+RUN dos2unix /startup/00-create-xinetd-service
+RUN dos2unix /startup/99-start-xinetd
+RUN dos2unix /home/ctf/handler.sh
+
 ENTRYPOINT ["tini", "-g", "--"]
-CMD ["/entrypoint.sh"]
+CMD ["bash", "/entrypoint.sh"]
