@@ -4,14 +4,13 @@ import os
 import string
 import time
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, Optional
 
 import requests
 from eth_account import Account
 from web3 import Web3
 from web3.exceptions import TransactionNotFound
 from web3.types import TxReceipt
-from eth_sandbox import get_shared_secret
 from flask import Flask, jsonify, request
 
 HTTP_PORT = os.getenv("HTTP_PORT", "8545")
@@ -24,8 +23,6 @@ FLAG = os.getenv("FLAG", "PCTF{placeholder}")
 
 Account.enable_unaudited_hdwallet_features()
 
-
-
 @dataclass
 class Ticket:
     challenge_id: string
@@ -33,10 +30,12 @@ class Ticket:
 
 
 def check_ticket(ticket: str) -> Ticket:
+    if not ticket:
+        raise Exception("you haven't provided a ticket yet!")
     if os.environ.get("ALLOW_RANDOM_TICKET"):
         return Ticket(challenge_id=CHALLENGE_ID, team_id=ticket)
     if len(ticket) > 100 or len(ticket) < 8:
-        raise Exception('invalid ticket length')
+        raise Exception('the ticket must be more than 8 characters and less than 100 characters in length.')
     if not all(c in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' for c in ticket):
         raise Exception('ticket must be alphanumeric')
     m = hashlib.sha256()
@@ -91,9 +90,8 @@ def new_launch_instance_action(
             raise Exception("invalid ticket!")
 
         data = requests.post(
-            f"http://127.0.0.1:{HTTP_PORT}/new",
+            f"http://127.0.0.1:{HTTP_PORT}/instance/new",
             headers={
-                "Authorization": f"Bearer {get_shared_secret()}",
                 "Content-Type": "application/json",
             },
             data=json.dumps(
@@ -116,7 +114,6 @@ def new_launch_instance_action(
             f"http://127.0.0.1:{HTTP_PORT}/{uuid}",
             request_kwargs={
                 "headers": {
-                    "Authorization": f"Bearer {get_shared_secret()}",
                     "Content-Type": "application/json",
                 },
             },
@@ -155,9 +152,8 @@ def new_kill_instance_action():
         raise Exception("invalid ticket!")
 
     data = requests.post(
-        f"http://127.0.0.1:{HTTP_PORT}/kill",
+        f"http://127.0.0.1:{HTTP_PORT}/instance/kill",
         headers={
-            "Authorization": f"Bearer {get_shared_secret()}",
             "Content-Type": "application/json",
         },
         data=json.dumps(

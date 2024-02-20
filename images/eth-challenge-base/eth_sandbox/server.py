@@ -1,19 +1,17 @@
 import os
 import random
-import socket
 import subprocess
 import signal
 import sys
 import json
 import time
-from dataclasses import dataclass
-from threading import Lock, Thread
-from typing import Any, Dict, Tuple
+from threading import Thread
+from typing import Dict
 from uuid import uuid4
 
 import requests
 from eth_account.hdaccount import generate_mnemonic
-from flask import Flask, Response, redirect, request
+from flask import Flask, Response, request
 from flask_cors import CORS, cross_origin
 from web3 import Web3
 
@@ -124,26 +122,14 @@ def launch_node(team_id: str) -> Dict:
     return node_info
 
 
-def is_request_authenticated(request):
-    token = request.headers.get("Authorization")
-
-    return token == f"Bearer {get_shared_secret()}"
-
-
 @app.route("/")
 def index():
     return "sandbox is running!"
 
 
-@app.route("/new", methods=["POST"])
+@app.route("/instance/new", methods=["POST"])
 @cross_origin()
 def create():
-    if not is_request_authenticated(request):
-        return {
-            "ok": False,
-            "error": "nice try",
-        }
-
     body = request.get_json()
 
     team_id = body["team_id"]
@@ -177,14 +163,9 @@ def create():
     }
 
 
-@app.route("/kill", methods=["POST"])
+@app.route("/instance/kill", methods=["POST"])
 @cross_origin()
 def kill():
-    if not is_request_authenticated(request):
-        return {
-            "ok": False,
-            "error": "nice try",
-        }
 
     body = request.get_json()
 
@@ -245,7 +226,7 @@ def proxy(uuid):
         any(body["method"].startswith(namespace) for namespace in ALLOWED_NAMESPACES)
         and body["method"] != "eth_sendUnsignedTransaction"
     )
-    if not ok and not is_request_authenticated(request):
+    if not ok:
         return {
             "jsonrpc": "2.0",
             "id": body["id"],
