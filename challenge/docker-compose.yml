@@ -13,7 +13,7 @@ services:
       - PROXY_PORT=8080
       - LAUNCHER_PORT=8081
       - ENV=production
-      - ALLOW_RANDOM_TICKET=true
+      - ALLOW_RANDOM_TICKET=false
     deploy:
       resources:
         limits:
