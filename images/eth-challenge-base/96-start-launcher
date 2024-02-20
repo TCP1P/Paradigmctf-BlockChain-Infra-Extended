@@ -7,8 +7,8 @@
         --group ctf \
         --bind 0.0.0.0:$LAUNCHER_PORT \
         --daemon \
-        --workers 16 \
-        --threads 32 \
+        --workers 4 \
+        --threads 8 \
         --access-logfile /var/log/ctf/proxy.access.log \
         --error-logfile /var/log/ctf/proxy.error.log \
         --capture-output \
