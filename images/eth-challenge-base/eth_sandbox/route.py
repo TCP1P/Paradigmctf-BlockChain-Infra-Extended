@@ -77,8 +77,3 @@ def proxy(uuid):
     resp = requests.post(f"http://127.0.0.1:{HTTP_PORT}/{uuid}", json=body)
     response = Response(resp.content, resp.status_code, resp.raw.headers.items())
     return response
-
-@app.route("/download/solver-pow.py")
-def download_solver_pow():
-    file_path = "solver-pow.py"
-    return send_file(file_path, as_attachment=True)
