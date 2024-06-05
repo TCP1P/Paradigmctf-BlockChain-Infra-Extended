@@ -22,6 +22,7 @@ FLAG = os.getenv("FLAG", "PCTF{placeholder}")
 
 Account.enable_unaudited_hdwallet_features()
 
+
 @dataclass
 class Action:
     name: str
@@ -77,17 +78,21 @@ def new_launch_instance_action(
         uuid = data["uuid"]
         mnemonic = data["mnemonic"]
 
-        deployer_acct = Account.from_mnemonic(mnemonic, account_path=f"m/44'/60'/0'/0/0")
+        deployer_acct = Account.from_mnemonic(
+            mnemonic, account_path=f"m/44'/60'/0'/0/0"
+        )
         player_acct = Account.from_mnemonic(mnemonic, account_path=f"m/44'/60'/0'/0/1")
 
-        web3 = Web3(Web3.HTTPProvider(
-            f"http://127.0.0.1:{HTTP_PORT}/{uuid}",
-            request_kwargs={
-                "headers": {
-                    "Content-Type": "application/json",
+        web3 = Web3(
+            Web3.HTTPProvider(
+                f"http://127.0.0.1:{HTTP_PORT}/{uuid}",
+                request_kwargs={
+                    "headers": {
+                        "Content-Type": "application/json",
+                    },
                 },
-            },
-        ))
+            )
+        )
 
         setup_addr = do_deploy(web3, deployer_acct.address, player_acct.address)
 
@@ -101,14 +106,16 @@ def new_launch_instance_action(
                     }
                 )
             )
-        return {
-            '0': {"UUID":uuid},
-            '1': {"RPC Endpoint": "{ORIGIN}/"+uuid},
-            '2': {"Private Key": player_acct.privateKey.hex()},
-            '3': {"Setup Contract": setup_addr},
-            '4': {"Wallet": player_acct._address},
-            "message": "your private blockchain has been deployed, it will automatically terminate in 30 minutes"
-        }
+            session["data"] = {
+                "0": {"UUID": uuid},
+                "1": {"RPC Endpoint": "{ORIGIN}/" + uuid},
+                "2": {"Private Key": player_acct.privateKey.hex()},
+                "3": {"Setup Contract": setup_addr},
+                "4": {"Wallet": player_acct._address},
+                "message": "your private blockchain has been deployed, it will automatically terminate in 30 minutes",
+            }
+        return session["data"]
+
     return action
 
 
@@ -129,7 +136,8 @@ def new_kill_instance_action():
         ),
     ).json()
 
-    return {'message':data["message"]}
+    return {"message": data["message"]}
+
 
 def is_solved_checker(web3: Web3, addr: str) -> bool:
     result = web3.eth.call(
@@ -153,18 +161,21 @@ def new_get_flag_action():
 
     web3 = Web3(Web3.HTTPProvider(f"http://127.0.0.1:{HTTP_PORT}/{data['uuid']}"))
 
-    if not is_solved_checker(web3, data['address']):
+    if not is_solved_checker(web3, data["address"]):
         raise Exception("are you sure you solved it?")
 
     return {"message": FLAG}
 
+
 def handle_error(e):
     import traceback
+
     traceback.print_exc()
 
     response = jsonify(error=str(e))
     response.status_code = 400
     return response
+
 
 def run_launcher(do_deploy: Callable[[Web3, str], str]):
     app = route.app
@@ -173,4 +184,3 @@ def run_launcher(do_deploy: Callable[[Web3, str], str]):
     app.get("/launch")(new_launch_instance_action(do_deploy))
     app.errorhandler(Exception)(handle_error)
     return app
-
