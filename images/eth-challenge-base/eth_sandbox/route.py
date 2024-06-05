@@ -19,6 +19,8 @@ app = Flask(__name__)
 app.secret_key = SECRET_KEY
 app.config['SESSION_COOKIE_NAME'] = SESSION_COOKIE_NAME
 
+CHALLENGE_LEVEL = 10000
+
 limiter = Limiter(
     get_remote_address,
     app=app,
@@ -39,7 +41,7 @@ def message(msg):
 def before_request():
     challenge = session.get("challenge")
     if challenge == None:
-        challenge = Challenge.generate(5000)
+        challenge = Challenge.generate(CHALLENGE_LEVEL)
         session["challenge"] = str(challenge)
 
 @app.post("/solution")
@@ -48,12 +50,13 @@ def send_solution():
     solution = request.json.get("solution")
     try:
         if not check(Challenge.from_string(challenge) , solution):
-            session['challenge'] = str(Challenge.generate(5000))
+            session['challenge'] = str(Challenge.generate(CHALLENGE_LEVEL))
             raise Exception("challenge failed")
     except:
-        session['challenge'] = str(Challenge.generate(5000))
+        session['challenge'] = str(Challenge.generate(CHALLENGE_LEVEL))
         raise Exception("challenge failed")
     session["ticket"] = randbytes(16).hex()
+    session.pop("challenge")
     return message("challenge solved")
 
 @app.get("/data")
