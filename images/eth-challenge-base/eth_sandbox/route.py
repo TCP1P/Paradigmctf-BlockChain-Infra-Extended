@@ -7,17 +7,17 @@ from random import randbytes
 from flask_limiter.util import get_remote_address
 import requests
 import re
+import os
+from eth_sandbox.env import SESSION_COOKIE_NAME, SECRET_KEY
+from eth_sandbox.ppow import Challenge, check
 
 HTTP_PORT = os.getenv("HTTP_PORT", "8545")
-LAUNCHER_PORT = os.getenv("LAUNCHER_PORT", "8546")
-PROXY_PORT = os.getenv("PROXY_PORT", "8080")
-
 UUID_PATTERN = re.compile(r'^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$')
 ALPHANUMERIC_PATTERN = re.compile(r'^[a-zA-Z0-9]{1,}$')
 
 app = Flask(__name__)
-app.secret_key = randbytes(32)
-app.config['SESSION_COOKIE_NAME'] = "blockchain_"+randbytes(6).hex()
+app.secret_key = SECRET_KEY
+app.config['SESSION_COOKIE_NAME'] = SESSION_COOKIE_NAME
 
 limiter = Limiter(
     get_remote_address,
@@ -35,25 +35,34 @@ def is_alphanumeric(text):
 def message(msg):
     return {"message": msg}
 
-@app.get("/ticket/<string:ticket>")
-def save_ticket(ticket):
-    if not is_alphanumeric(ticket):
-        return message("ticket is not alphanumeric")
-    session["ticket"] = ticket
-    return message("ticket saved")
+@app.before_request
+def before_request():
+    challenge = session.get("challenge")
+    if challenge == None:
+        challenge = Challenge.generate(5000)
+        session["challenge"] = str(challenge)
 
-@app.get("/instance/data")
+@app.post("/solution")
+def send_solution():
+    challenge = session.get("challenge")
+    solution = request.json.get("solution")
+    try:
+        if not check(Challenge.from_string(challenge) , solution):
+            session['challenge'] = str(Challenge.generate(5000))
+            raise Exception("challenge failed")
+    except:
+        session['challenge'] = str(Challenge.generate(5000))
+        raise Exception("challenge failed")
+    session["ticket"] = randbytes(16).hex()
+    return message("challenge solved")
+
+@app.get("/data")
 def get_instance_data():
     return session.get("data", {})
 
-@app.get("/instance/<string:path>")
-@limiter.limit("10 per minute")
-def launch(path):
-    if not is_alphanumeric(path):
-        return message("path is not alphanumeric")
-    resp = requests.get(f"http://127.0.0.1:{LAUNCHER_PORT}/{path}", params={"ticket":session.get("ticket")})
-    response = Response(resp.content, resp.status_code, resp.raw.headers.items())
-    return response
+@app.get("/challenge")
+def get_challenge():
+    return {"challenge": session.get("challenge")}
 
 @app.get("/")
 def home():
@@ -63,7 +72,7 @@ def home():
 @cross_origin()
 def proxy(uuid):
     if not is_uuid(uuid):
-        return message("uuid is not a valid uuid")
+        raise Exception("uuid is not a valid uuid")
     body = request.get_json()
     resp = requests.post(f"http://127.0.0.1:{HTTP_PORT}/{uuid}", json=body)
     response = Response(resp.content, resp.status_code, resp.raw.headers.items())
@@ -73,6 +82,3 @@ def proxy(uuid):
 def download_solver_pow():
     file_path = "solver-pow.py"
     return send_file(file_path, as_attachment=True)
-
-if __name__ == "__main__":
-    app.run("0.0.0.0", PROXY_PORT, debug=True)

@@ -1,7 +1,6 @@
-import hashlib
 import json
 import os
-import string
+import sys
 import time
 from dataclasses import dataclass
 from typing import Callable, Dict, Optional
@@ -11,42 +10,17 @@ from eth_account import Account
 from web3 import Web3
 from web3.exceptions import TransactionNotFound
 from web3.types import TxReceipt
-from flask import Flask, jsonify, request
+from flask import jsonify, request, session
+import eth_sandbox.route as route
 
 HTTP_PORT = os.getenv("HTTP_PORT", "8545")
 LAUNCHER_PORT = os.getenv("LAUNCHER_PORT", "8546")
-PROXY_PORT = os.getenv("PROXY_PORT", "8547")
 
 CHALLENGE_ID = os.getenv("CHALLENGE_ID", "challenge")
 ENV = os.getenv("ENV", "dev")
 FLAG = os.getenv("FLAG", "PCTF{placeholder}")
 
 Account.enable_unaudited_hdwallet_features()
-
-@dataclass
-class Ticket:
-    challenge_id: string
-    team_id: string
-
-
-def check_ticket(ticket: str) -> Ticket:
-    if not ticket:
-        raise Exception("you haven't provided a ticket yet!")
-    if os.environ.get("ALLOW_RANDOM_TICKET"):
-        return Ticket(challenge_id=CHALLENGE_ID, team_id=ticket)
-    if len(ticket) > 100 or len(ticket) < 8:
-        raise Exception('the ticket must be more than 8 characters and less than 100 characters in length.')
-    if not all(c in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' for c in ticket):
-        raise Exception('ticket must be alphanumeric')
-    m = hashlib.sha256()
-    m.update(ticket.encode('ascii'))
-    digest1 = m.digest()
-    m = hashlib.sha256()
-    m.update(digest1 + ticket.encode('ascii'))
-    if not m.hexdigest().startswith('0000000'):
-        raise Exception('PoW: sha256(sha256(ticket) + ticket) must start with 0000000 (digest was ' + m.hexdigest() + ')')
-    return Ticket(challenge_id=CHALLENGE_ID, team_id=ticket)
-
 
 @dataclass
 class Action:
@@ -81,13 +55,9 @@ def new_launch_instance_action(
     do_deploy: Callable[[Web3, str], str],
 ):
     def action():
-        ticket = request.args.get("ticket")
-        ticket = check_ticket(ticket)
+        ticket = session.get("ticket")
         if not ticket:
-            raise Exception("invalid ticket!")
-
-        if ticket.challenge_id != CHALLENGE_ID:
-            raise Exception("invalid ticket!")
+            raise Exception("please solve the challenge first")
 
         data = requests.post(
             f"http://127.0.0.1:{HTTP_PORT}/instance/new",
@@ -96,7 +66,7 @@ def new_launch_instance_action(
             },
             data=json.dumps(
                 {
-                    "team_id": ticket.team_id,
+                    "team_id": ticket,
                 }
             ),
         ).json()
@@ -121,7 +91,7 @@ def new_launch_instance_action(
 
         setup_addr = do_deploy(web3, deployer_acct.address, player_acct.address)
 
-        with open(f"/tmp/{ticket.team_id}", "w") as f:
+        with open(f"/tmp/{ticket}", "w") as f:
             f.write(
                 json.dumps(
                     {
@@ -143,13 +113,9 @@ def new_launch_instance_action(
 
 
 def new_kill_instance_action():
-    ticket = request.args.get("ticket")
-    ticket = check_ticket(ticket)
+    ticket = session.get("ticket")
     if not ticket:
-        raise Exception("invalid ticket!")
-
-    if ticket.challenge_id != CHALLENGE_ID:
-        raise Exception("invalid ticket!")
+        raise Exception("please solve the challenge first")
 
     data = requests.post(
         f"http://127.0.0.1:{HTTP_PORT}/instance/kill",
@@ -158,7 +124,7 @@ def new_kill_instance_action():
         },
         data=json.dumps(
             {
-                "team_id": ticket.team_id,
+                "team_id": ticket,
             }
         ),
     ).json()
@@ -176,14 +142,11 @@ def is_solved_checker(web3: Web3, addr: str) -> bool:
 
 
 def new_get_flag_action():
-    ticket = request.args.get("ticket")
-    ticket = check_ticket(ticket)
+    ticket = session.get("ticket")
     if not ticket:
-        raise Exception("invalid ticket!")
-    if ticket.challenge_id != CHALLENGE_ID:
-        raise Exception("invalid ticket!")
+        raise Exception("please solve the challenge first")
     try:
-        with open(f"/tmp/{ticket.team_id}", "r") as f:
+        with open(f"/tmp/{ticket}", "r") as f:
             data = json.loads(f.read())
     except:
         raise Exception("bad ticket")
@@ -196,12 +159,15 @@ def new_get_flag_action():
     return {"message": FLAG}
 
 def handle_error(e):
+    import traceback
+    traceback.print_exc()
+
     response = jsonify(error=str(e))
-    response.status_code = 500
+    response.status_code = 400
     return response
 
 def run_launcher(do_deploy: Callable[[Web3, str], str]):
-    app = Flask(__name__)
+    app = route.app
     app.get("/flag")(new_get_flag_action)
     app.get("/kill")(new_kill_instance_action)
     app.get("/launch")(new_launch_instance_action(do_deploy))

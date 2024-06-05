@@ -5,8 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Ethernet Launcher</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
     <style>
         .container {
             border-radius: 10px;
@@ -47,6 +46,14 @@
         table td {
             padding: 8px;
         }
+
+        footer {
+            width: 100%;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            padding: 10px;
+        }
     </style>
 </head>
 
@@ -56,12 +63,12 @@
     <div class="row container">
         <div class="col-lg-4 col-md-6 col-sm-12">
             <form id="ticketForm">
-                <label for="ticketInput" class="form-label">Enter Ticket:</label>
-                <input type="text" class="form-control" id="ticketInput" placeholder="Ticket">
+                <label for="solutionInput" class="form-label">Enter Solution:</label>
+                <input type="text" class="form-control" id="solutionInput" placeholder="Solution">
             </form>
 
             <div class="mt-4">
-                <button type="button" class="btn btn-primary" onclick="saveTicket()">Save Ticket</button>
+                <button type="button" class="btn btn-primary" onclick="sendSolution()">Submit Solution</button>
             </div>
 
             <div class="mt-4 row">
@@ -69,7 +76,7 @@
                     <button type="button" class="btn btn-success" onclick="launchInstance()">Launch</button>
                 </div>
                 <div class="col-md-4 col-sm-12">
-                    <button type="button" class="btn btn-danger" onclick="killInstance()">Kill</button>
+                    <button type="button" class="btn btn-danger" onclick="killInstance()">Terminate</button>
                 </div>
                 <div class="col-md-4 col-sm-12">
                     <button type="button" class="btn btn-warning" onclick="flagInstance()">Flag</button>
@@ -80,25 +87,19 @@
                 <span class="visually-hidden">Loading...</span>
             </div>
 
-            <div class="alert alert-danger mt-3" id="errorAlert" style="display: none;"></div>
-            <div class="alert alert-success mt-3" id="successAlert" style="display: none;"></div>
+            <div class="alert alert-danger mt-3" id="errorAlert"></div>
+            <div class="alert alert-success mt-3" id="successAlert"></div>
 
-            <!-- New Download Button -->
             <div class="mt-4 text-center">
-                <a href="/download/solver-pow.py" download>Download solver-pow.py</a>
-                <p class="mt-2">To generate the ticket, run the provided Python script. The proof-of-work (PoW)
-                    condition is: <strong>sha256(sha256(ticket) + ticket)</strong> must start with
-                    <strong>0000000</strong>.</p>
+                <p>Run the following command to solve the challenge:</p>
+                <p class="mt-2" id="challenge"></p>
             </div>
-
         </div>
 
         <div class="col-lg-8 col-md-6 col-sm-12" id="credsDisplay">
             <strong>Credentials:</strong>
             <table class="table mt-2">
-                <tbody>
-
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
     </div>
@@ -106,11 +107,8 @@
         Made with love from TCP1P Community
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
-        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
     <script>
-        // Check if data exists in the session on page load
         document.addEventListener('DOMContentLoaded', async function () {
             const response = await fetch('/data');
             const data = await response.json();
@@ -119,19 +117,44 @@
             }
         });
 
-        async function saveTicket() {
+        async function getChallenge() {
             showLoading();
-            var ticket = document.getElementById("ticketInput").value;
             try {
-                const response = await fetch(`/ticket/${ticket}`);
+                const response = await fetch('/challenge', { method: 'GET' });
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById("challenge").textContent = `curl -sSfL https://pwn.red/pow | sh -s ${data.challenge}`;
+                } else {
+                    showError(data.error);
+                }
+            } catch (error) {
+                showError("Error fetching challenge. Please try again.");
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function sendSolution() {
+            showLoading();
+            const solution = document.getElementById("solutionInput").value;
+            try {
+                const response = await fetch('/solution', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ solution })
+                });
                 const data = await response.json();
                 if (response.ok) {
                     showSuccess(data.message);
                 } else {
                     showError(data.error);
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    window.location.reload();
                 }
             } catch (error) {
-                showError("Error saving ticket. Please try again.");
+                showError("Error submitting solution. Please try again.");
             } finally {
                 hideLoading();
             }
@@ -139,11 +162,10 @@
 
         async function sendAction(action) {
             showLoading();
-            let response = null
+            let response = null;
             try {
-                response = await fetch(`/${action}`, { method: 'GET' });
+                response = await fetch(`/${action}`, { method: 'GET', credentials: 'include' });
                 const data = await response.json();
-
                 if (response.ok) {
                     showSuccess(data.message);
                     displayCredentials(data);
@@ -151,10 +173,10 @@
                     showError(data.error);
                 }
             } catch (error) {
-                if (response.status === 429) {
+                if (response && response.status === 429) {
                     showError("Rate limit exceeded. Please try again later.");
                 } else {
-                    showError(`Error ${action} instance. Please try again.`);
+                    showError(`Error executing ${action}. Please try again.`);
                 }
             } finally {
                 hideLoading();
@@ -162,19 +184,25 @@
         }
 
         function showLoading() {
-            const loadingSpinner = document.getElementById("loadingSpinner");
-            loadingSpinner.style.display = "block";
+            document.getElementById("loadingSpinner").style.display = "block";
         }
 
         function hideLoading() {
-            const loadingSpinner = document.getElementById("loadingSpinner");
-            loadingSpinner.style.display = "none";
+            document.getElementById("loadingSpinner").style.display = "none";
         }
 
         function showSuccess(message) {
             const successAlert = document.getElementById("successAlert");
             successAlert.textContent = message;
             successAlert.style.display = "block";
+            setTimeout(() => { successAlert.style.display = "none"; }, 5000);
+        }
+
+        function showError(message) {
+            const errorAlert = document.getElementById("errorAlert");
+            errorAlert.textContent = message;
+            errorAlert.style.display = "block";
+            setTimeout(() => { errorAlert.style.display = "none"; }, 5000);
         }
 
         function displayCredentials(credentials) {
@@ -190,31 +218,20 @@
             });
         }
 
-
-        function showError(message) {
-            const errorAlert = document.getElementById("errorAlert");
-            errorAlert.textContent = message;
-            errorAlert.style.display = "block";
-            setTimeout(() => {
-                errorAlert.style.display = "none";
-            }, 5000);  // Hide the alert after 5 seconds
-        }
-
         function launchInstance() {
-            sendAction('instance/launch');
+            sendAction('launch');
         }
 
         function killInstance() {
-            const tableBody = document.querySelector("#credsDisplay tbody");
-            tableBody.innerHTML = ""
-
-            // Send the kill action
-            sendAction('instance/kill');
+            document.querySelector("#credsDisplay tbody").innerHTML = "";
+            sendAction('kill');
         }
 
         function flagInstance() {
-            sendAction('instance/flag');
+            sendAction('flag');
         }
+
+        getChallenge();
     </script>
 </body>
 

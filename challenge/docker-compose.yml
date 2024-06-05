@@ -10,8 +10,7 @@ services:
       - CHALLENGE_ID=${CHALLENGE_ID}
       - FLAG=${FLAG}
       - HTTP_PORT=8545
-      - PROXY_PORT=8080
-      - LAUNCHER_PORT=8081
+      - LAUNCHER_PORT=8080
       - ENV=production
       # - ALLOW_RANDOM_TICKET=1
     deploy:

@@ -6,7 +6,6 @@ ENV PROXY_PORT=8080
 
 COPY --from=deps /root/.foundry/* /bin/
 COPY 96-start-launcher /startup
-COPY 97-start-proxy /startup
 COPY 98-start-gunicorn /startup
 
 # Uncomment the following lines to install dos2unix if needed
