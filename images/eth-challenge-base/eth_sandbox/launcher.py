@@ -94,7 +94,7 @@ def new_launch_instance_action(
             )
         )
 
-        setup_addr = do_deploy(web3, deployer_acct.address, player_acct.address)
+        setup_addr = do_deploy(web3, deployer_acct.address, deployer_acct.privateKey.hex(), player_acct.address)
 
         with open(f"/tmp/{ticket}", "w") as f:
             f.write(

@@ -213,7 +213,7 @@
                 const row = tableBody.insertRow();
                 const cellKey = row.insertCell(0);
                 const cellValue = row.insertCell(1);
-                cellKey.textContent = Object.keys(credentials[key])[0]; // Capitalize the key
+                cellKey.textContent = Object.keys(credentials[key])[0];
                 cellValue.textContent = Object.values(credentials[key])[0].replace("{ORIGIN}", location.origin);
             });
         }
