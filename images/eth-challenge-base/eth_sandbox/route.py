@@ -14,6 +14,7 @@ from eth_sandbox.ppow import Challenge, check
 HTTP_PORT = os.getenv("HTTP_PORT", "8545")
 UUID_PATTERN = re.compile(r'^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$')
 ALPHANUMERIC_PATTERN = re.compile(r'^[a-zA-Z0-9]{1,}$')
+DISABLE_TICKET = os.getenv("DISABLE_TICKET", "false").lower() == "true"
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -40,6 +41,8 @@ def message(msg):
 @app.before_request
 def before_request():
     challenge = session.get("challenge")
+    if DISABLE_TICKET:
+        session["ticket"] = randbytes(16).hex()
     if challenge == None:
         challenge = Challenge.generate(CHALLENGE_LEVEL)
         session["challenge"] = str(challenge)
