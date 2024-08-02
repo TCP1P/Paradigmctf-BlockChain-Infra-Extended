@@ -2,32 +2,29 @@ import os
 import random
 import subprocess
 import signal
-import sys
 import json
 import time
 from threading import Thread
 from typing import Dict
 from uuid import uuid4
-
+import re
+import asyncio
 import requests
-from eth_account.hdaccount import generate_mnemonic
 from flask import Flask, Response, request
 from flask_cors import CORS, cross_origin
-from web3 import Web3
-
-from eth_sandbox import *
+from starknet_py.net.full_node_client import FullNodeClient
 
 app = Flask(__name__)
 CORS(app)
 
 HTTP_PORT = os.getenv("HTTP_PORT", "8545")
-ETH_RPC_URL = os.getenv("ETH_RPC_URL")
 
 try:
     os.mkdir("/tmp/instances-by-team")
     os.mkdir("/tmp/instances-by-uuid")
 except:
     pass
+
 
 def has_instance_by_uuid(uuid: str) -> bool:
     return os.path.exists(f"/tmp/instances-by-uuid/{uuid}")
@@ -38,12 +35,12 @@ def has_instance_by_team(team: str) -> bool:
 
 
 def get_instance_by_uuid(uuid: str) -> Dict:
-    with open(f"/tmp/instances-by-uuid/{uuid}", 'r') as f:
+    with open(f"/tmp/instances-by-uuid/{uuid}", "r") as f:
         return json.loads(f.read())
 
 
 def get_instance_by_team(team: str) -> Dict:
-    with open(f"/tmp/instances-by-team/{team}", 'r') as f:
+    with open(f"/tmp/instances-by-team/{team}", "r") as f:
         return json.loads(f.read())
 
 
@@ -77,54 +74,70 @@ def kill_node(node_info: Dict):
     really_kill_node(node_info)
 
 
-def launch_node(team_id: str) -> Dict:
-    port = random.randrange(30000, 60000)
-    mnemonic = generate_mnemonic(12, "english")
+async def launch_node(team_id: str) -> Dict:
+    port = str(random.randrange(30000, 60000))
     uuid = str(uuid4())
+    seedMsgLine = "Seed to replicate this account sequence: "
 
-    proc = subprocess.Popen(
-        args=[
-            "anvil",
-            "--accounts",
-            "2",  # first account is the deployer, second account is for the user
-            "--balance",
-            "5000",
-            "--mnemonic",
-            mnemonic,
-            "--port",
-            str(port),
-            # "--fork-url",
-            # ETH_RPC_URL,
-            "--block-base-fee-per-gas",
-            "0",
-        ],
+    proc = await asyncio.create_subprocess_exec(
+        f"starknet-devnet",
+        f"--port={port}",
+        "--accounts=2",
+        stdout=asyncio.subprocess.PIPE,
     )
 
-    web3 = Web3(Web3.HTTPProvider(f"http://127.0.0.1:{port}"))
+    client = FullNodeClient(f"http://127.0.0.1:{port}")
+    stdout = await proc.stdout.readline()
+    while seedMsgLine.encode() not in stdout:
+        stdout += b"\n" + await proc.stdout.readline()
+    print(stdout.decode())
     while True:
-        print("Waiting for the foundry to properly start...", file=sys.stderr)
-        if proc.poll() is not None:
-            return None
-        if web3.isConnected():
+        try:
+            await client.get_block()
             break
+        except Exception as e:
+            print(e)
+            pass
         time.sleep(0.1)
-
+    accounts_re = re.findall(
+        r"Account address.*?(0x[a-f0-9]+).*?Private key.*?(0x[a-f0-9]+).*?Public key.*?(0x[a-f0-9]+)",
+        stdout.decode(),
+        flags=re.DOTALL
+    )
+    print(stdout.decode())
+    accounts = []
+    for account in accounts_re:
+        accounts.append(
+            {
+                "address": account[0],
+                "private_key": account[1],
+                "public_key": account[2],
+            }
+        )
+    seed_re = re.findall(
+        f"{seedMsgLine}(.*)$",
+        stdout.decode(),
+    )
     node_info = {
         "port": port,
-        "mnemonic": mnemonic,
+        "accounts": accounts,
         "pid": proc.pid,
         "uuid": uuid,
         "team": team_id,
+        "seed": seed_re[0]
     }
-
     reaper = Thread(target=kill_node, args=(node_info,))
     reaper.start()
     return node_info
 
 
+@app.route("/")
+def index():
+    return "sandbox is running!"
+
+
 @app.route("/instance/new", methods=["POST"])
-@cross_origin()
-def create():
+async def create():
     body = request.get_json()
 
     team_id = body["team_id"]
@@ -139,7 +152,7 @@ def create():
 
     print(f"launching node for team {team_id}")
 
-    node_info = launch_node(team_id)
+    node_info = await launch_node(team_id)
     if node_info is None:
         print(f"failed to launch node for team {team_id}")
         return {
@@ -147,14 +160,16 @@ def create():
             "error": "error_starting_chain",
             "message": "An error occurred while starting the chain",
         }
+
     create_instance_info(node_info)
 
-    print(f"launched node for team {team_id} (uuid={node_info['uuid']}, pid={node_info['pid']})")
+    print(
+        f"launched node for team {team_id} (uuid={node_info['uuid']}, pid={node_info['pid']})"
+    )
 
     return {
-        "ok": True,
-        "uuid": node_info['uuid'],
-        "mnemonic": node_info['mnemonic'],
+        **node_info,
+        "ok": True
     }
 
 
@@ -182,7 +197,33 @@ def kill():
     }
 
 
-ALLOWED_NAMESPACES = ["web3", "eth", "net"]
+ALLOWED_NAMESPACES = ["starknet"]
+
+
+@cross_origin()
+def proxy_get(path):
+    uuid = request.authorization.username
+    if not has_instance_by_uuid(uuid):
+        return {
+            "jsonrpc": "2.0",
+            "error": {
+                "code": -32602,
+                "message": "invalid uuid specified",
+            },
+        }
+
+    node_info = get_instance_by_uuid(uuid)
+    url = f"http://127.0.0.1:{node_info['port']}/"
+    resp = requests.request(
+        method=request.method,
+        url=url,
+        headers={key: value for (key, value) in request.headers if key != "Host"},
+        data=request.get_data(),
+        cookies=request.cookies,
+        allow_redirects=False,
+    )
+    response = Response(resp.content, resp.status_code, resp.raw.headers.items())
+    return response
 
 
 @app.route("/<string:uuid>", methods=["POST"])
@@ -191,9 +232,6 @@ def proxy(uuid):
     body = request.get_json()
     if not body:
         return "invalid content type, only application/json is supported"
-
-    if "id" not in body:
-        return ""
 
     if not has_instance_by_uuid(uuid):
         return {
@@ -206,32 +244,7 @@ def proxy(uuid):
         }
 
     node_info = get_instance_by_uuid(uuid)
-
-    if "method" not in body or not isinstance(body["method"], str):
-        return {
-            "jsonrpc": "2.0",
-            "id": body["id"],
-            "error": {
-                "code": -32600,
-                "message": "invalid request",
-            },
-        }
-
-    ok = (
-        any(body["method"].startswith(namespace) for namespace in ALLOWED_NAMESPACES)
-        and body["method"] != "eth_sendUnsignedTransaction"
-    )
-    if not ok:
-        return {
-            "jsonrpc": "2.0",
-            "id": body["id"],
-            "error": {
-                "code": -32600,
-                "message": "invalid request",
-            },
-        }
-
-    resp = requests.post(f"http://127.0.0.1:{node_info['port']}", json=body)
+    resp = requests.post(f"http://127.0.0.1:{node_info['port']}/", json=body)
     response = Response(resp.content, resp.status_code, resp.raw.headers.items())
     return response
 

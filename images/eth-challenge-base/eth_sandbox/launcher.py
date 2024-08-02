@@ -9,46 +9,19 @@ from eth_account import Account
 from web3 import Web3
 from web3.exceptions import TransactionNotFound
 from web3.types import TxReceipt
-from flask import jsonify, request, session
+from flask import jsonify, session
 import eth_sandbox.route as route
 
 HTTP_PORT = os.getenv("HTTP_PORT", "8545")
-LAUNCHER_PORT = os.getenv("LAUNCHER_PORT", "8546")
 
-CHALLENGE_ID = os.getenv("CHALLENGE_ID", "challenge")
-ENV = os.getenv("ENV", "dev")
 FLAG = os.getenv("FLAG", "PCTF{placeholder}")
 
 Account.enable_unaudited_hdwallet_features()
-
 
 @dataclass
 class Action:
     name: str
     handler: Callable[[], int]
-
-
-def sendTransaction(web3: Web3, tx: Dict) -> Optional[TxReceipt]:
-    if "gas" not in tx:
-        tx["gas"] = 10_000_000
-
-    if "gasPrice" not in tx:
-        tx["gasPrice"] = 0
-
-    # web3.provider.make_request("anvil_impersonateAccount", [tx["from"]])
-    txhash = web3.eth.sendTransaction(tx)
-    # web3.provider.make_request("anvil_stopImpersonatingAccount", [tx["from"]])
-
-    while True:
-        try:
-            rcpt = web3.eth.getTransactionReceipt(txhash)
-            break
-        except TransactionNotFound:
-            time.sleep(0.1)
-
-    if rcpt.status != 1:
-        raise Exception("failed to send transaction")
-    return rcpt
 
 
 def new_launch_instance_action(
