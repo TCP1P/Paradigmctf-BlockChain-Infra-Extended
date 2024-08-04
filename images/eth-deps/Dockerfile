@@ -1,4 +1,4 @@
-FROM python:3.9
+FROM python:3.12
 
 RUN true \
     && curl -L https://foundry.paradigm.xyz | bash \

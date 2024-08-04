@@ -10,15 +10,18 @@ https://github.com/foundry-rs/foundry
 - testing: forge test -vvv
 
 Credentials:
-UUID: 	38a19e78-394a-4748-8a4b-0d55e1f2e408
-RPC Endpoint: 	http://localhost:48334/38a19e78-394a-4748-8a4b-0d55e1f2e408
-Private Key: 	0x4aa563c1076b3d162f68814291ed83cb4e99765ad301f6bace11346327a7bc9d
-Setup Contract: 	0x168A4D8facdC0613ce9Bf02c4E5321F3b14CdE43
+
+UUID	eca06b1a-8bd1-4ee1-847d-38fee12e57c5
+RPC Endpoint	http://localhost:48334/eca06b1a-8bd1-4ee1-847d-38fee12e57c5
+Private Key	0x6b9884607deeb3b03e224c0c6b49d2ce2682ce5cbea8919648b9e7d7dc28d564
+Setup Contract	0xD66aAe948B365EE0230A91119e04d7FD11A22d7f
+Wallet	0xbf758881E6132A53BbED8b2E0Bd2C1AFb15689b2
+
 """
 
-RPC_URL = "http://localhost:48334/38a19e78-394a-4748-8a4b-0d55e1f2e408"
-PRIVKEY = "0x4aa563c1076b3d162f68814291ed83cb4e99765ad301f6bace11346327a7bc9d"
-SETUP_CONTRACT_ADDR = "0x168A4D8facdC0613ce9Bf02c4E5321F3b14CdE43"
+RPC_URL = "http://localhost:48334/eca06b1a-8bd1-4ee1-847d-38fee12e57c5"
+PRIVKEY = "0x6b9884607deeb3b03e224c0c6b49d2ce2682ce5cbea8919648b9e7d7dc28d564"
+SETUP_CONTRACT_ADDR = "0xD66aAe948B365EE0230A91119e04d7FD11A22d7f"
 
 def get_abi(filename):
     # get abi "solc <filename> --abi"

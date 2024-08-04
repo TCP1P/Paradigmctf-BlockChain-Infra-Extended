@@ -50,7 +50,7 @@ def new_launch_instance_action(
         uuid = data["uuid"]
         mnemonic = data["mnemonic"]
 
-        deployer_acct = Account.from_mnemonic(
+        deployer_acct : LocalAccount = Account.from_mnemonic(
             mnemonic, account_path=f"m/44'/60'/0'/0/0"
         )
         player_acct = Account.from_mnemonic(mnemonic, account_path=f"m/44'/60'/0'/0/1")
@@ -66,7 +66,7 @@ def new_launch_instance_action(
             )
         )
 
-        setup_addr = do_deploy(web3, deployer_acct.address, deployer_acct.privateKey.hex(), player_acct.address)
+        setup_addr = do_deploy(web3, deployer_acct.address, deployer_acct._private_key.hex(), player_acct.address)
 
         with open(f"/tmp/{ticket}", "w") as f:
             f.write(
@@ -81,7 +81,7 @@ def new_launch_instance_action(
             session["data"] = {
                 "0": {"UUID": uuid},
                 "1": {"RPC Endpoint": "{ORIGIN}/" + uuid},
-                "2": {"Private Key": player_acct.privateKey.hex()},
+                "2": {"Private Key": player_acct._private_key.hex()},
                 "3": {"Setup Contract": setup_addr},
                 "4": {"Wallet": player_acct._address},
                 "message": "your private blockchain has been deployed, it will automatically terminate in 30 minutes",
@@ -115,7 +115,7 @@ def is_solved_checker(web3: Web3, addr: str) -> bool:
     result = web3.eth.call(
         {
             "to": addr,
-            "data": web3.sha3(text="isSolved()")[:4],
+            "data": Web3.keccak(text="isSolved()")[:4],
         }
     )
     return int(result.hex(), 16) == 1

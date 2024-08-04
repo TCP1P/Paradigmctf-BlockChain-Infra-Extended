@@ -105,7 +105,7 @@ def launch_node(team_id: str) -> Dict:
         print("Waiting for the foundry to properly start...", file=sys.stderr)
         if proc.poll() is not None:
             return None
-        if web3.isConnected():
+        if web3.is_connected():
             break
         time.sleep(0.1)
 

@@ -1,4 +1,4 @@
-import launcher
+import cairo_sandbox
 
 from pathlib import Path
 
@@ -13,11 +13,11 @@ async def deploy(
     declare_result = await Contract.declare_v2(
         account=system_account,
         compiled_contract=Path(
-            "challenge/target/dev/challenge_setup.contract_class.json"
+            "contracts/target/dev/challenge_setup.contract_class.json"
         ).read_text(),
         max_fee=int(1e18),
         compiled_contract_casm=Path(
-            "challenge/target/dev/challenge_setup.compiled_contract_class.json"
+            "contracts/target/dev/challenge_setup.compiled_contract_class.json"
         ).read_text(),
     )
 
@@ -28,5 +28,4 @@ async def deploy(
     return setup_deployment.deployed_contract.address
 
 
-app = launcher.run_launcher(deploy)
-app.run("0.0.0.0", 5000)
+app = cairo_sandbox.run_launcher(deploy)

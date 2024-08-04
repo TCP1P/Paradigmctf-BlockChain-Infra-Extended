@@ -86,6 +86,7 @@ def new_launch_instance_action(
                     {
                         "uuid": uuid,
                         "address": contract_addr,
+                        "accounts": accounts
                     }
                 )
             )
@@ -140,25 +141,14 @@ async def new_get_flag_action():
 
     client = FullNodeClient(f"http://127.0.0.1:{HTTP_PORT}/{data['uuid']}")
 
-    random_generator = random.Random()
-    random_generator.seed(int(data["seed"]))
-
-    system_private_key = random_generator.getrandbits(128)
-    system_public_key = private_to_stark_key(system_private_key)
-    system_address = compute_address(
-        salt=20,
-        class_hash=1803505466663265559571280894381905521939782500874858933595227108099796801620,
-        constructor_calldata=[system_public_key],
-        deployer_address=0,
-    )
-
+    system_address = data['accounts'][0]['address']
+    system_private_key = data['accounts'][0]['private_key']
     # https://github.com/Shard-Labs/starknet-devnet/blob/a5c53a52dcf453603814deedb5091ab8c231c3bd/starknet_devnet/account.py#L35
     system_client = Account(
         client=client,
         address=system_address,
-        key_pair=KeyPair(
-            private_key=system_private_key, public_key=system_public_key
-        )
+        key_pair=KeyPair.from_private_key(system_private_key),
+        chain=await client.get_chain_id()
     )
     contract = await Contract.from_address(
         int(data["address"], 16), system_client

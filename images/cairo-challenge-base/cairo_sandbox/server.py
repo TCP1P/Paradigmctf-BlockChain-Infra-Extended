@@ -90,7 +90,6 @@ async def launch_node(team_id: str) -> Dict:
     stdout = await proc.stdout.readline()
     while seedMsgLine.encode() not in stdout:
         stdout += b"\n" + await proc.stdout.readline()
-    print(stdout.decode())
     while True:
         try:
             await client.get_block()
@@ -104,7 +103,6 @@ async def launch_node(team_id: str) -> Dict:
         stdout.decode(),
         flags=re.DOTALL
     )
-    print(stdout.decode())
     accounts = []
     for account in accounts_re:
         accounts.append(

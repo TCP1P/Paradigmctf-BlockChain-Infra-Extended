@@ -1,10 +1,17 @@
-FROM gcr.io/paradigmxyz/ctf/cairo-deps:latest as deps
+FROM shardlabs/starknet-devnet-rs as starknet
 FROM gcr.io/paradigmxyz/ctf/base:latest
+
 
 ENV HTTP_PORT=8545
 ENV PROXY_PORT=8080
 
-COPY --from=deps /root/.foundry/* /bin/
+COPY --from=starknet /usr/local/bin/starknet-devnet /bin/starknet-devnet
+
+USER ctf
+ENV SHELL=/bin/bash
+RUN curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | sh
+
+USER root
 COPY 96-start-launcher /startup
 COPY 98-start-gunicorn /startup
 
@@ -16,6 +23,6 @@ COPY 98-start-gunicorn /startup
 #     rm -rf /var/lib/apt/lists/*
 
 
-COPY eth_sandbox /usr/lib/python/eth_sandbox
+COPY cairo_sandbox /usr/lib/python/cairo_sandbox
 
 ENV PYTHONPATH /usr/lib/python

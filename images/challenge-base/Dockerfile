@@ -1,4 +1,4 @@
-FROM python:3.9
+FROM python:3.12
 
 ENV PORT=31337
 
@@ -6,7 +6,7 @@ RUN mkdir /var/log/ctf /startup
 RUN apt update
 RUN apt install -y tini
 RUN rm -rf /var/cache/apt/archives
-RUN useradd -m ctf
+RUN useradd --shell /bin/bash -m ctf
 
 COPY requirements.txt /root
 RUN python3 -m pip install --default-timeout=9999 -r /root/requirements.txt

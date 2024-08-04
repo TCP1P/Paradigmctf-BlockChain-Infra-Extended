@@ -11,4 +11,4 @@ PYTHONUNBUFFERED=true gunicorn \
     --error-logfile /var/log/ctf/gunicorn.error.log \
     --capture-output \
     --log-level debug \
-    eth_sandbox.server:app
+    cairo_sandbox.server:app
