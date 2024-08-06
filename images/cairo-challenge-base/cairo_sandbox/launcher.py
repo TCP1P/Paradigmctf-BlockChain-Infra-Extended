@@ -24,12 +24,6 @@ LAUNCHER_PORT = os.getenv("LAUNCHER_PORT", "8546")
 
 FLAG = os.getenv("FLAG", "PCTF{placeholder}")
 
-@dataclass
-class Ticket:
-    challenge_id: string
-    team_id: string
-
-
 def new_launch_instance_action(
     do_deploy: Callable[[FullNodeClient, Account, Account], str],
 ):
