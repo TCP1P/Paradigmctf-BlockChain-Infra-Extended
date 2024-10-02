@@ -25,6 +25,11 @@ def deploy(web3: Web3, deployer_address: str, deployer_privateKey: str, player_a
 
     rcpt = web3.eth.wait_for_transaction_receipt(tx_hash)
 
+    # web3.provider.make_request(
+    #     "anvil_setBalance",
+    #     [player_address, Web3.to_wei(10, 'ether')]
+    # )
+
     return rcpt.contractAddress
 
 app = eth_sandbox.run_launcher(deploy)

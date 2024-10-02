@@ -57,7 +57,7 @@ def new_launch_instance_action(
 
         web3 = Web3(
             Web3.HTTPProvider(
-                f"http://127.0.0.1:{HTTP_PORT}/{uuid}",
+                f"http://127.0.0.1:{data['port']}",
                 request_kwargs={
                     "headers": {
                         "Content-Type": "application/json",

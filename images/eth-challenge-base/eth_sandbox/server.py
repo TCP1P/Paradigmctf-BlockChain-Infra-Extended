@@ -155,6 +155,7 @@ def create():
         "ok": True,
         "uuid": node_info['uuid'],
         "mnemonic": node_info['mnemonic'],
+        "port": node_info['port'],
     }
 
 
