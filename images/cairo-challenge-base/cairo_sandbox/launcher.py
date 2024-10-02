@@ -49,7 +49,7 @@ def new_launch_instance_action(
 
         uuid = data["uuid"]
         accounts = data["accounts"]
-        client = FullNodeClient(f"http://127.0.0.1:{HTTP_PORT}/{uuid}")
+        client = FullNodeClient(f"http://127.0.0.1:{data['port']}")
 
         player_private_key = accounts[0]["private_key"]
         player_address = accounts[0]["address"]

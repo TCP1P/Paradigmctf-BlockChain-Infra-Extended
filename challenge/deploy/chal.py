@@ -4,6 +4,13 @@ from pathlib import Path
 import eth_sandbox
 from web3 import Web3
 
+def set_balance(web3: Web3, account_address: str, amount: int):
+    res = web3.provider.make_request(
+        "anvil_setBalance",
+        [account_address, amount]
+    )
+    print(res)
+
 
 def deploy(web3: Web3, deployer_address: str, deployer_privateKey: str, player_address: str) -> str:
     contract_info = json.loads(Path("compiled/Setup.sol/Setup.json").read_text())
@@ -25,10 +32,7 @@ def deploy(web3: Web3, deployer_address: str, deployer_privateKey: str, player_a
 
     rcpt = web3.eth.wait_for_transaction_receipt(tx_hash)
 
-    # web3.provider.make_request(
-    #     "anvil_setBalance",
-    #     [player_address, Web3.to_wei(10, 'ether')]
-    # )
+    # set_balance(web3, player_address, Web3.to_wei(1, 'eth'))
 
     return rcpt.contractAddress
 
