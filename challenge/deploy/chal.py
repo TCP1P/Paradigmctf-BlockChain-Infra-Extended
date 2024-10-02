@@ -32,7 +32,7 @@ def deploy(web3: Web3, deployer_address: str, deployer_privateKey: str, player_a
 
     rcpt = web3.eth.wait_for_transaction_receipt(tx_hash)
 
-    # set_balance(web3, player_address, Web3.to_wei(1, 'eth'))
+    set_balance(web3, player_address, Web3.to_wei(1, 'ether'))
 
     return rcpt.contractAddress
 
