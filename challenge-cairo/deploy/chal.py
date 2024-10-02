@@ -10,13 +10,13 @@ from starknet_py.net.full_node_client import FullNodeClient
 def eth_to_wei(eth: float) -> int:
     return int(eth * 10**18)
 
-async def set_balance(client: FullNodeClient, account_address: str, amount: int):
+async def set_balance(client: FullNodeClient, account_address: int, amount: int):
     """
     This function mints balance to an account via StarkNet Devnet API.
     """
     url = f"{client.url}/mint"
     data = {
-        "address": account_address,
+        "address": hex(account_address),
         "amount": amount
     }
 
@@ -42,8 +42,8 @@ async def deploy(
         ).read_text(),
     )
 
-    await set_balance(client, system_account, eth_to_wei(5000))
-    await set_balance(client, player_account, eth_to_wei(0))
+    await set_balance(client, system_account.address, eth_to_wei(5000))
+    await set_balance(client, player_account.address, eth_to_wei(0))
 
     await declare_result.wait_for_acceptance()
     setup_deployment: DeployResult = await declare_result.deploy_v1(max_fee=int(1e18))

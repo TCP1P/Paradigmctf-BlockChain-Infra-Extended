@@ -6,17 +6,17 @@ from starknet_py.net.account.account import Account as StarknetAccount, KeyPair
 from starknet_py.net.full_node_client import FullNodeClient
 
 """
-UUID	3e4b1922-8339-4e3d-9c05-cf0320e84c47
-RPC Endpoint	http://localhost:48334/3e4b1922-8339-4e3d-9c05-cf0320e84c47
-Private Key	0x0000000000000000000000000000000008ecbaa9218bd9e55a7c925817a0124f
-Setup Contract	0x77fb61096e2c5771c22b36dcb29aec076206c26204b60e2a5b8caa11babc793
-Wallet	0x9ee8a5717da09d86eea2d6465e42783a32a1e357a614770fe31c47fe7358ec
+UUID	4b3201f3-dd1a-4145-b71f-da7d4b33f6a9
+RPC Endpoint	http://localhost:48334/4b3201f3-dd1a-4145-b71f-da7d4b33f6a9
+Private Key	0x0000000000000000000000000000000000608ad76178c9f9b2a33c20ce4ec700
+Setup Contract	0x68a1d74eab03cbeb9e37f5efb7456ebfd477d5e074e5a21a3f48fd3caaf30fd
+Wallet	0x4dc74db3c5de182c05e98fabf270a9021e703d679ac9514664f5f21099d760d
 """
 # StarkNet settings
-RPC_URL = "http://localhost:48334/3e4b1922-8339-4e3d-9c05-cf0320e84c47"
-PRIVKEY = "0x0000000000000000000000000000000008ecbaa9218bd9e55a7c925817a0124f"
-SETUP_CONTRACT_ADDR = "0x77fb61096e2c5771c22b36dcb29aec076206c26204b60e2a5b8caa11babc793"
-WALLET_ADDR = "0x9ee8a5717da09d86eea2d6465e42783a32a1e357a614770fe31c47fe7358ec"
+RPC_URL = "http://localhost:48334/4b3201f3-dd1a-4145-b71f-da7d4b33f6a9"
+PRIVKEY = "0x0000000000000000000000000000000000608ad76178c9f9b2a33c20ce4ec700"
+SETUP_CONTRACT_ADDR = "0x68a1d74eab03cbeb9e37f5efb7456ebfd477d5e074e5a21a3f48fd3caaf30fd"
+WALLET_ADDR = "0x4dc74db3c5de182c05e98fabf270a9021e703d679ac9514664f5f21099d760d"
 
 SCARB_TOML = toml.load("./contracts/Scarb.toml")
 
@@ -38,25 +38,27 @@ class Account:
         return self
 
 class BaseContractProps:
-    def __init__(self, class_name: str) -> None:
+    def __init__(self, class_name: str, abi=None) -> None:
         self.class_name = class_name
 
-    @property
-    def abi(self):
-        name = SCARB_TOML["package"]["name"]
-        klass = json.loads(TARGET_DEV.joinpath(f"{name}_{self.class_name}.contract_class.json").read_text())
-        return klass['abi']
+    async def abi(self, from_src=False):
+        if from_src:
+            name = SCARB_TOML["package"]["name"]
+            klass = json.loads(TARGET_DEV.joinpath(f"{name}_{self.class_name}.contract_class.json").read_text())
+            return klass['abi']
+        else:
+            klass = await Account().client.get_class_at(SETUP_CONTRACT_ADDR)
+            return klass.parsed_abi
 
 class BaseDeployedContract(Account, BaseContractProps):
-    def __init__(self, addr, class_name) -> None:
-        BaseContractProps.__init__(self, class_name)
+    def __init__(self, addr, class_name, abi=None) -> None:
+        BaseContractProps.__init__(self, class_name, abi)
         Account.__init__(self)
         self.address = addr
         self.contract = None
-
     async def __call__(self):
         await Account.__call__(self)
-        self.contract = Contract(address=int(self.address, 16), abi=self.abi, provider=self.account_client)
+        self.contract = Contract(address=int(self.address, 16), abi=await self.abi(), provider=self.account_client)
         return self
 
 class BaseUndeployedContract(Account, BaseContractProps):
@@ -67,7 +69,7 @@ class BaseUndeployedContract(Account, BaseContractProps):
 
     async def __call__(self):
         await Account.__call__(self)
-        self.contract = Contract(abi=self.abi, client=self.account_client)
+        self.contract = Contract(abi=await self.abi(), client=self.account_client)
         return self
 
     async def deploy(self, *args):
@@ -82,10 +84,6 @@ class SetupContract(BaseDeployedContract):
             class_name="setup",
         )
 
-    async def __call__(self):
-        await super().__call__()
-        return self
-
     async def is_solved(self):
         result = await self.contract.functions['is_solved'].call()
         print("is solved:", result)
@@ -97,7 +95,7 @@ class SetupContract(BaseDeployedContract):
 async def main():
     setup = await SetupContract()()
     await setup.solve()
-    print(await setup.is_solved())
+    await setup.is_solved()
 
 if __name__ == "__main__":
     import asyncio
