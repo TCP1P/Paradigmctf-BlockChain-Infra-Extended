@@ -120,7 +120,10 @@ def new_kill_instance_action():
 async def is_solved_checker(contract: Contract):
     result = await contract.functions.get("is_solved").call()
     print("result:", result)
-    return result
+    if isinstance(result, bool):
+        return result
+    if isinstance(result, tuple) or isinstance(result, list):
+        return result[0]
 
 
 async def new_get_flag_action():
