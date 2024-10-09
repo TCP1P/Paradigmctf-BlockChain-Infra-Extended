@@ -11,7 +11,7 @@ services:
       - HTTP_PORT=8545
       - LAUNCHER_PORT=8080
       - ENV=production
-      - DISABLE_TICKET=true
+      # - DISABLE_TICKET=true
     deploy:
       resources:
         limits:
