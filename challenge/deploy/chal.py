@@ -13,10 +13,11 @@ def set_balance(web3: Web3, account_address: str, amount: int):
 
 
 def deploy(web3: Web3, deployer_address: str, deployer_privateKey: str, player_address: str) -> str:
+    uri = web3.provider.endpoint_uri
     contract_info = json.loads(Path("compiled/Setup.sol/Setup.json").read_text())
-
     abi = contract_info["abi"]
     bytecode = contract_info["bytecode"]["object"]
+
 
     contract = web3.eth.contract(abi=abi, bytecode=bytecode)
 
