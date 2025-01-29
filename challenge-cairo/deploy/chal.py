@@ -1,5 +1,5 @@
 import requests
-import cairo_sandbox
+import sandbox
 
 from pathlib import Path
 
@@ -52,4 +52,4 @@ async def deploy(
     return setup_deployment.deployed_contract.address
 
 
-app = cairo_sandbox.run_launcher(deploy)
+app = sandbox.run_launcher(deploy)

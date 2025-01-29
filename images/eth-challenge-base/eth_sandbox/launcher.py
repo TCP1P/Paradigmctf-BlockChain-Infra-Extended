@@ -50,24 +50,7 @@ def new_launch_instance_action(
         uuid = data["uuid"]
         mnemonic = data["mnemonic"]
 
-        deployer_acct : LocalAccount = Account.from_mnemonic(
-            mnemonic, account_path=f"m/44'/60'/0'/0/0"
-        )
-        player_acct = Account.from_mnemonic(mnemonic, account_path=f"m/44'/60'/0'/0/1")
-
-        web3 = Web3(
-            Web3.HTTPProvider(
-                f"http://127.0.0.1:{data['port']}",
-                request_kwargs={
-                    "headers": {
-                        "Content-Type": "application/json",
-                    },
-                },
-            )
-        )
-
-        setup_addr = do_deploy(web3, deployer_acct.address, deployer_acct._private_key.hex(), player_acct.address)
-
+        
         with open(f"/tmp/{ticket}", "w") as f:
             f.write(
                 json.dumps(

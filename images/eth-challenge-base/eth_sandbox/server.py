@@ -76,52 +76,6 @@ def kill_node(node_info: Dict):
 
     really_kill_node(node_info)
 
-
-def launch_node(team_id: str) -> Dict:
-    port = random.randrange(30000, 60000)
-    mnemonic = generate_mnemonic(12, "english")
-    uuid = str(uuid4())
-
-    proc = subprocess.Popen(
-        args=[
-            "anvil",
-            "--accounts",
-            "2",  # first account is the deployer, second account is for the user
-            "--balance",
-            "5000",
-            "--mnemonic",
-            mnemonic,
-            "--port",
-            str(port),
-            # "--fork-url",
-            # ETH_RPC_URL,
-            "--block-base-fee-per-gas",
-            "0",
-        ],
-    )
-
-    web3 = Web3(Web3.HTTPProvider(f"http://127.0.0.1:{port}"))
-    while True:
-        print("Waiting for the foundry to properly start...", file=sys.stderr)
-        if proc.poll() is not None:
-            return None
-        if web3.is_connected():
-            break
-        time.sleep(0.1)
-
-    node_info = {
-        "port": port,
-        "mnemonic": mnemonic,
-        "pid": proc.pid,
-        "uuid": uuid,
-        "team": team_id,
-    }
-
-    reaper = Thread(target=kill_node, args=(node_info,))
-    reaper.start()
-    return node_info
-
-
 @app.route("/instance/new", methods=["POST"])
 @cross_origin()
 def create():

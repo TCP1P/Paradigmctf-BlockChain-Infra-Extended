@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-import eth_sandbox
+import sandbox
 from web3 import Web3
 
 def set_balance(web3: Web3, account_address: str, amount: int):
@@ -37,4 +37,4 @@ def deploy(web3: Web3, deployer_address: str, deployer_privateKey: str, player_a
 
     return rcpt.contractAddress
 
-app = eth_sandbox.run_launcher(deploy)
+app = sandbox.run_launcher(deploy)

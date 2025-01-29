@@ -1,4 +1,4 @@
-FROM python:3.12
+FROM gcr.io/paradigmxyz/ctf/base:latest AS deps
 
 RUN true \
     && curl -L https://foundry.paradigm.xyz | bash \
@@ -14,3 +14,14 @@ RUN cd /tmp/init && \
     /root/.foundry/bin/forge init && \
     /root/.foundry/bin/forge test && \
     rm -rf /tmp/init
+
+FROM gcr.io/paradigmxyz/ctf/base:latest
+
+COPY --from=deps /root/.foundry/* /bin/
+COPY 96-start-launcher /startup
+
+COPY sandbox /usr/lib/python/sandbox
+
+ENV PYTHONPATH=/usr/lib/python
+
+ENV BLOCKCHAIN_TYPE=eth

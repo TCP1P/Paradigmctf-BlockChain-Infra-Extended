@@ -1,1 +1,0 @@
-{"version":1,"contracts":[{"id":"l96osl4sigi56","package_name":"challenge","contract_name":"setup","module_path":"challenge::setup::setup","artifacts":{"sierra":"challenge_setup.contract_class.json","casm":"challenge_setup.compiled_contract_class.json"}}]}

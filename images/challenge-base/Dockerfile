@@ -15,10 +15,5 @@ COPY entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh
 
-# RUN dos2unix /entrypoint.sh
-# RUN dos2unix /startup/00-create-xinetd-service
-# RUN dos2unix /startup/99-start-xinetd
-# RUN dos2unix /home/ctf/handler.sh
-
 ENTRYPOINT ["tini", "-g", "--"]
 CMD ["bash", "/entrypoint.sh"]

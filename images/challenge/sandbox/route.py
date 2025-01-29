@@ -2,23 +2,20 @@ import os
 import re
 from flask import Flask, Response, request, session, send_file
 from flask_limiter import Limiter
-from flask_cors import cross_origin
 from random import randbytes
 from flask_limiter.util import get_remote_address
 import requests
 import re
 import os
-try:
-    from cairo_sandbox.env import SESSION_COOKIE_NAME, SECRET_KEY
-    from cairo_sandbox.ppow import Challenge, check
-except:
-    from env import SESSION_COOKIE_NAME, SECRET_KEY
-    from ppow import Challenge, check
+from .env import SESSION_COOKIE_NAME, SECRET_KEY
+from .ppow import Challenge, check
+from .blockchain_manager import *
 
-HTTP_PORT = os.getenv("HTTP_PORT", "8545")
 UUID_PATTERN = re.compile(r'^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$')
 ALPHANUMERIC_PATTERN = re.compile(r'^[a-zA-Z0-9]{1,}$')
 DISABLE_TICKET = os.getenv("DISABLE_TICKET", "false").lower() == "true"
+ETH_ALLOWED_NAMESPACES = ["web3", "eth", "net"]
+CAIRO_ALLOWED_NAMESPACES = ["starknet"]
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -46,7 +43,8 @@ def message(msg):
 def before_request():
     challenge = session.get("challenge")
     if DISABLE_TICKET:
-        session["ticket"] = randbytes(16).hex()
+        if not session.get("ticket"): 
+            session["ticket"] = randbytes(16).hex()
     if challenge == None:
         challenge = Challenge.generate(CHALLENGE_LEVEL)
         session["challenge"] = str(challenge)
@@ -79,11 +77,46 @@ def home():
     return send_file("index.html")
 
 @app.route("/<string:uuid>", methods=["POST"])
-@cross_origin()
 def proxy(uuid):
     if not is_uuid(uuid):
         raise Exception("uuid is not a valid uuid")
     body = request.get_json()
-    resp = requests.post(f"http://127.0.0.1:{HTTP_PORT}/{uuid}", json=body)
+    if not body:
+        return "invalid content type, only application/json is supported"
+    if not has_instance_by_uuid(uuid):
+        return {
+            "jsonrpc": "2.0",
+            "id": body["id"],
+            "error": {
+                "code": -32602,
+                "message": "invalid uuid specified",
+            },
+        }
+    if BM.blockchain_type == "eth":
+        if "method" not in body or not isinstance(body["method"], str):
+            return {
+                "jsonrpc": "2.0",
+                "id": body["id"],
+                "error": {
+                    "code": -32600,
+                    "message": "invalid request",
+                },
+            }
+        ok = (
+            any(body["method"].startswith(namespace) for namespace in ETH_ALLOWED_NAMESPACES)
+            and body["method"] != "eth_sendUnsignedTransaction"
+        )
+        if not ok:
+            return {
+                "jsonrpc": "2.0",
+                "id": body["id"],
+                "error": {
+                    "code": -32600,
+                    "message": "invalid request",
+                },
+            }
+
+    node_info = get_instance_by_uuid(uuid)
+    resp = requests.post(f"http://127.0.0.1:{node_info.port}/", json=body)
     response = Response(resp.content, resp.status_code, resp.raw.headers.items())
     return response

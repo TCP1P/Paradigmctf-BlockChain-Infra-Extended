@@ -8,17 +8,18 @@ from starknet_py.net.account.account import Account as StarknetAccount, KeyPair
 from starknet_py.net.full_node_client import FullNodeClient
 
 """
-UUID	bd222936-0517-4970-8f87-31f953f438f5
-RPC Endpoint	http://localhost:48334/bd222936-0517-4970-8f87-31f953f438f5
-Private Key	0x000000000000000000000000000000006332124a8cd3251f6dfad1f0a3d54515
-Setup Contract	0x62a8c72b7cddeb5716e4e809cbfaefb74dd36e4aa6d7d48e0f94c5aa1c595f
-Wallet	0x553217a52b488458c037c6a0ce14b577553d07e599672062da96b126e8653e2
+UUID = "9b74b15f-f109-4c1f-9e85-5675ed1ea703"
+RPC Endpoint = "http://localhost:48334/9b74b15f-f109-4c1f-9e85-5675ed1ea703"
+Private Key = "0x00000000000000000000000000000000453ee795f782b4692444da67f531bb71"
+Setup Contract = "0x13562b0760b37b7f9e0e8e029ca47e9344605285c00f7a2de7e861d6c58054d"
+Wallet = "0x06402e815043798d6b10aa16a688680d710b6f4c501140c8088679975d7e6654"
 """
 # StarkNet settings
-RPC_URL = "http://localhost:48334/bd222936-0517-4970-8f87-31f953f438f5"
-PRIVKEY = "0x000000000000000000000000000000006332124a8cd3251f6dfad1f0a3d54515"
-SETUP_CONTRACT_ADDR = "0x62a8c72b7cddeb5716e4e809cbfaefb74dd36e4aa6d7d48e0f94c5aa1c595f"
-WALLET_ADDR = "0x553217a52b488458c037c6a0ce14b577553d07e599672062da96b126e8653e2"
+UUID = "184100d7-03ab-4562-9820-72a114abbe8e"
+RPC_URL = "http://localhost:48334/184100d7-03ab-4562-9820-72a114abbe8e"
+PRIVKEY = "0x00000000000000000000000000000000f292c667068dcf3b5d6c6c8c9c9dbcee"
+SETUP_CONTRACT_ADDR = "0x34d1bc9ba116ac26bcbf5ee9f994e5f3ac7f5fbee66757936d58d06597ff26d"
+WALLET_ADDR = "0x05a048c42ecbc81ab53be410b1777137342db55617c49a27f54c438da42376c7"
 
 SCARB_TOML = toml.load("./contracts/Scarb.toml")
 
@@ -127,7 +128,7 @@ class SetupContract(BaseDeployedContract):
         print("is solved:", result)
 
     async def solve(self):
-        result = await self.contract.functions['solve'].invoke_v1(1337533, max_fee=int(1e18))
+        result = await self.contract.functions['solve'].invoke_v1(max_fee=int(1e18))
         print("solve:", result)
 
 async def main():
