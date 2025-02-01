@@ -6,3 +6,5 @@ Werkzeug==3.0.3
 starknet-py==0.23.0
 web3==6.20.1
 gunicorn==22.0.0
+anchorpy==0.20.1
+base58

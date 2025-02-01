@@ -9,6 +9,7 @@ from typing import Callable, List, Literal
 from uuid import uuid4
 import re
 import asyncio
+
 from .type import AccountInfo, NodeInfo
 import os
 import random
@@ -19,7 +20,14 @@ import json
 import time
 from threading import Thread
 from uuid import uuid4
+from base58 import b58encode
 
+
+import asyncio
+from solders.pubkey import Pubkey  # type: ignore
+from solders.keypair import Keypair  # type: ignore
+from anchorpy import Program, Provider, Wallet, Context
+from solders.system_program import ID as SYS_PROGRAM_ID
 
 from web3 import Web3
 
@@ -35,6 +43,8 @@ from starknet_py.net.full_node_client import FullNodeClient as cairoFullNodeClie
 from eth_account import Account as ethAccount
 from eth_account.hdaccount import generate_mnemonic
 from eth_account.signers.local import LocalAccount as ethLocalAccount
+from solana.rpc.async_api import AsyncClient as SolanaClient
+
 ethAccount.enable_unaudited_hdwallet_features()
 
 try:
@@ -65,6 +75,10 @@ def get_instance_by_team(team: str):
 def delete_instance_info(node_info: NodeInfo):
     os.remove(f'/tmp/instances-by-uuid/{node_info.uuid}')
     os.remove(f'/tmp/instances-by-team/{node_info.team}')
+    try:
+        os.rmdir(f"/home/ctf/{node_info.uuid}")
+    except:
+        pass
 
 
 def create_instance_info(node_info: NodeInfo):
@@ -170,14 +184,6 @@ def launch_node_eth(team_id: str):
             break
         time.sleep(0.1)
 
-    node_info = {
-        "port": port,
-        "mnemonic": mnemonic,
-        "pid": proc.pid,
-        "uuid": uuid,
-        "team": team_id,
-    }
-
     deployer_acct : ethLocalAccount = ethAccount.from_mnemonic(
         mnemonic, account_path=f"m/44'/60'/0'/0/0"
     )
@@ -201,9 +207,71 @@ def launch_node_eth(team_id: str):
     reaper.start()
     return node_info
 
+def launch_node_solana(team_id: str):
+    port = random.randrange(30000, 60000)
+    uuid = str(uuid4())
+
+    # Start Solana test validator
+    proc = subprocess.Popen(
+        ["solana-test-validator", "--rpc-port", str(port), "--quiet", "--ledger", uuid],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
+
+    # Wait for validator to be ready
+    while True:
+        try:
+            check_proc = subprocess.run(
+                ["solana", "cluster-version", "--url", f"http://localhost:{port}"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if check_proc.returncode == 0:
+                break
+        except subprocess.TimeoutExpired:
+            continue
+        time.sleep(0.5)
+
+    # Generate keypairs
+    system_keypair = Keypair()
+    player_keypair = Keypair()
+    ctx_keypair = Keypair()
+
+    accounts = [
+        AccountInfo(
+            address=str(system_keypair.pubkey()),
+            private_key=b58encode(bytes(system_keypair)).decode(),
+            public_key=str(system_keypair.pubkey())
+        ),
+        AccountInfo(
+            address=str(player_keypair.pubkey()),
+            private_key=b58encode(bytes(player_keypair)).decode(),
+            public_key=str(player_keypair.pubkey())
+        ),
+        AccountInfo(
+            address=str(ctx_keypair.pubkey()),
+            private_key=b58encode(bytes(ctx_keypair)).decode(),
+            public_key=str(ctx_keypair.pubkey())
+        ),
+    ]
+
+    node_info = NodeInfo(
+        port=port,
+        accounts=accounts,
+        pid=proc.pid,
+        uuid=uuid,
+        team=team_id,
+        seed=None,
+        contract_addr=None
+    )
+
+    reaper = Thread(target=kill_node, args=(node_info,))
+    reaper.start()
+    return node_info
     
 class BlockchainManager:
-    def __init__(self, blockchain_type: Literal["cairo", "eth"]):
+    def __init__(self, blockchain_type: Literal["cairo", "eth", "solana"]):
         self.blockchain_type = blockchain_type
         if blockchain_type == "cairo":
             from starknet_py.net.full_node_client import FullNodeClient
@@ -212,7 +280,13 @@ class BlockchainManager:
             from web3 import Web3
             self.client = Web3(Web3.HTTPProvider("http://127.0.0.1:8545"))
 
-    async def start_instance(self, team_id: str, do_deploy: Callable[[cairoFullNodeClient, cairoAccount, cairoAccount], str] | Callable[[Web3, str], str]):
+    async def start_instance(
+            self, 
+            team_id: str, 
+            do_deploy: Callable[[cairoFullNodeClient, cairoAccount, cairoAccount], str] 
+            | Callable[[Web3, str], str] 
+            | Callable[[SolanaClient, Keypair, Keypair, Keypair], str]
+        ):
         if has_instance_by_team(team_id):
             raise Exception("instace already exist, please kill it before start it again")
         if self.blockchain_type == "cairo":
@@ -258,8 +332,21 @@ class BlockchainManager:
                     )
                 )
 
-                setup_addr = do_deploy(web3, deployer_acct.address, deployer_acct._private_key.hex(), player_acct.address)
+                setup_addr = await do_deploy(web3, deployer_acct.address, deployer_acct._private_key.hex(), player_acct.address)
                 team_node.contract_addr = setup_addr
+                create_instance_info(team_node)
+                return team_node
+        elif self.blockchain_type == "solana":
+            team_node = launch_node_solana(team_id)
+            if team_node:
+                client = SolanaClient(f"http://localhost:{team_node.port}")
+                system_kp = Keypair.from_base58_string(team_node.accounts[0].private_key)
+                player_kp = Keypair.from_base58_string(team_node.accounts[1].private_key)
+                ctx_kp = Keypair.from_base58_string(team_node.accounts[2].private_key)
+                
+                # Deploy contract/program
+                contract_addr = await do_deploy(client, system_kp, player_kp, ctx_kp)
+                team_node.contract_addr = contract_addr
                 create_instance_info(team_node)
                 return team_node
         raise Exception("failed creating an instace")
@@ -300,5 +387,23 @@ class BlockchainManager:
                 }
             )
             return int(result.hex(), 16) == 1
+        elif self.blockchain_type == "solana":
+            team_node = get_instance_by_team(team_id)
+            client = SolanaClient(f"http://localhost:{team_node.port}")
+            system_acc = Keypair.from_base58_string(team_node.accounts[0].private_key)
+            provider = Provider(client, Wallet(system_acc))
+            program = await Program.at(team_node.contract_addr, provider)
+            signature = await program.rpc['is_solved'](ctx=Context(
+                accounts={
+                    "solved_account": Pubkey.from_string(team_node.accounts[2].public_key),
+                    "user": provider.wallet.public_key,
+                    "system_program": SYS_PROGRAM_ID
+                }
+            ))
+            await client.confirm_transaction(signature)
+            transaction_result = await client.get_transaction(signature)
+            return transaction_result.value.transaction.meta.return_data.data[0] == 1
+
+
 
 BM = BlockchainManager(BLOCKCHAIN_TYPE)

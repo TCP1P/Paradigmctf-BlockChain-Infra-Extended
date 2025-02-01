@@ -1,0 +1,19 @@
+FROM gcr.io/paradigmxyz/ctf/base:latest
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+RUN /root/.cargo/bin/cargo install --git https://github.com/coral-xyz/anchor --tag v0.27.0 anchor-cli --locked
+RUN curl -fsSL https://deb.nodesource.com/setup_23.x | sh
+RUN apt install nodejs -y
+RUN npm install --global yarn
+RUN sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+
+ENV PATH="/root/.local/share/solana/install/active_release/bin:/root/.cargo/bin:$PATH"
+
+COPY ./solana-deps /solana-deps
+# caching
+RUN cd /solana-deps && anchor build && rm /solana-deps -rf 
+
+COPY 96-start-launcher /startup
+COPY sandbox /usr/lib/python/sandbox
+ENV PYTHONPATH=/usr/lib/python
+ENV BLOCKCHAIN_TYPE=solana

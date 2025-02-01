@@ -11,8 +11,8 @@ echo "SECRET_KEY = \"$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head
 (
     cd /home/ctf/
     PYTHONUNBUFFERED=true gunicorn \
-        --user ctf \
-        --group ctf \
+        --user root \
+        --group root \
         --bind 0.0.0.0:$LAUNCHER_PORT \
         --daemon \
         --workers 4 \

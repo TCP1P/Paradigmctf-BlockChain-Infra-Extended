@@ -1,0 +1,16 @@
+version: "3"
+
+services:
+  launcher:
+    build:
+      context: .
+    ports:
+      - "${PUBLIC_PORT}:8080"
+    environment:
+      - FLAG=${FLAG}
+      - LAUNCHER_PORT=8080
+      - DISABLE_TICKET=true
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"

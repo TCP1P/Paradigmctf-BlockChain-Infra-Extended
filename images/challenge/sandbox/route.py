@@ -16,6 +16,7 @@ ALPHANUMERIC_PATTERN = re.compile(r'^[a-zA-Z0-9]{1,}$')
 DISABLE_TICKET = os.getenv("DISABLE_TICKET", "false").lower() == "true"
 ETH_ALLOWED_NAMESPACES = ["web3", "eth", "net"]
 CAIRO_ALLOWED_NAMESPACES = ["starknet"]
+SOLANA_BLACKLIST_NAMESPACES = ["requestAirdrop"]
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -26,7 +27,7 @@ CHALLENGE_LEVEL = 10000
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["60 per minute"],
+    default_limits=["360 per minute"],
     storage_uri="memory://",
 )
 
@@ -115,6 +116,19 @@ def proxy(uuid):
                     "message": "invalid request",
                 },
             }
+    elif BM.blockchain_type == "cairo":
+        ...
+    elif BM.blockchain_type == "solana":
+        if any(body["method"].startswith(namespace) for namespace in SOLANA_BLACKLIST_NAMESPACES):
+            return {
+                "jsonrpc": "2.0",
+                "id": body["id"],
+                "error": {
+                    "code": -32600,
+                    "message": "invalid request",
+                },
+            }
+        print(body)
 
     node_info = get_instance_by_uuid(uuid)
     resp = requests.post(f"http://127.0.0.1:{node_info.port}/", json=body)

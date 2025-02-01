@@ -11,24 +11,29 @@ LAUNCHER_PORT = os.getenv("LAUNCHER_PORT", "8546")
 FLAG = os.getenv("FLAG", "PCTF{placeholder}")
 
 def new_launch_instance_action(
-    do_deploy: Callable[[cairoFullNodeClient, cairoAccount, cairoAccount], str] | Callable[[Web3, str], str],
+    do_deploy: Callable[[cairoFullNodeClient, cairoAccount, cairoAccount], str] | Callable[[Web3, str], str] | Callable[[SolanaClient, Keypair, Keypair], str],
 ):
     async def action():
         ticket = session.get("ticket")
         if not ticket:
             raise Exception("please solve the challenge first")
         data = await BM.start_instance(ticket, do_deploy)
-        player_private_key = data.accounts[1].private_key
-        player_address = data.accounts[1].address
-        contract_addr = data.contract_addr
-        session["data"] = {
-            "0": {"UUID": data.uuid},
-            "1": {"RPC_URL": "{ORIGIN}/"+data.uuid},
-            "2": {"PRIVKEY": player_private_key},
-            "3": {"SETUP_CONTRACT_ADDR": contract_addr},
-            "4": {"WALLET_ADDR": player_address},
-            "message": "your private blockchain has been deployed, it will automatically terminate in 30 minutes",
-        }
+        if BM.blockchain_type == "solana":
+            session["data"] = {
+                "0": {"RPC_URL": "{ORIGIN}/"+data.uuid},
+                "1": {"PLAYER_KEYPAIR": data.accounts[1].private_key},
+                "2": {"CTX_PUBKEY": data.accounts[2].public_key},
+                "3": {"PROGRAM_ID": data.contract_addr},
+                "message": "your private blockchain has been deployed, it will automatically terminate in 30 minutes",
+            }
+        else:
+            session["data"] = {
+                "0": {"RPC_URL": "{ORIGIN}/"+data.uuid},
+                "1": {"PRIVKEY": data.accounts[1].private_key},
+                "2": {"SETUP_CONTRACT_ADDR": data.contract_addr},
+                "3": {"WALLET_ADDR": data.accounts[1].address},
+                "message": "your private blockchain has been deployed, it will automatically terminate in 30 minutes",
+            }
         return session["data"]
 
     return action
