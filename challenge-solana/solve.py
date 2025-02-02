@@ -5,10 +5,10 @@ from solders.keypair import Keypair  # type: ignore
 from anchorpy import Program, Provider, Wallet, Context
 from solders.system_program import ID as SYS_PROGRAM_ID
 
-PLAYER_KEYPAIR = "4ixKcq4BvkTbUiojSyQRm4wC1dSdQ6zeXwpuFbGCJVbwbk4VxRUVnUVHQu545YG7hgX5iEcaxRgoX5C572x1ZAkY"
-CTX_PUBKEY = "7EBjs2pGtmpGK1gcGqzHb4bpeNSm4wmqMSkEvzy53Mbk"
+PLAYER_KEYPAIR = "4CWJLhmCCqQT53qHijMGHkUXLTv9LeLkeTno9jguuaZCzjc6gEHhuUr4FtsvEvAdTYKaccXKLTv1n4nSuKGrYgFH"
+CTX_PUBKEY = "CkPvKMTjUkDwpPLYUZX7KAjUAGAfqg6EeGv2Y7HX6CYR"
 PROGRAM_ID = "35qSrLjTWNtqytQKN487v5MzRQHnd1HaPqNsChzdiK5D"
-RPC_URL = "http://localhost:48334/4215f49c-22ec-4649-92c3-48872079ca87"
+RPC_URL = "http://localhost:48334/b29ff677-a76b-4d95-82a3-8c18bcb0f79b"
 
 async def main():
     client = AsyncClient(RPC_URL)
@@ -19,7 +19,7 @@ async def main():
     
     program = await Program.at(setup_program_id, provider)
 
-    dat = await program.rpc['solve'](
+    solve_tx = await program.rpc['solve'](
         ctx=Context(
             accounts={
                 "solved_account": ctx_pubkey,
@@ -28,9 +28,8 @@ async def main():
             },
         ),
     )
-    await client.confirm_transaction(dat)
 
-    dat = await program.rpc['is_solved'](
+    is_solved_tx = await program.rpc['is_solved'](
         ctx=Context(
             accounts={
                 "solved_account": ctx_pubkey,
@@ -39,8 +38,11 @@ async def main():
             },
         ),
     )
-    await client.confirm_transaction(dat)
-    transaction_result = await client.get_transaction(dat)
+    await asyncio.gather(
+        client.confirm_transaction(solve_tx),
+        client.confirm_transaction(is_solved_tx),
+    )
+    transaction_result = await client.get_transaction(is_solved_tx)
     print(transaction_result.value.transaction.meta.return_data.data[0] == 1)
 
     # ac = await program.account['SolvedState'].fetch(ctx_pubkey)
