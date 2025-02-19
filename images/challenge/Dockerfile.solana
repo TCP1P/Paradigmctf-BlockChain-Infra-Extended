@@ -1,13 +1,14 @@
 FROM gcr.io/paradigmxyz/ctf/base:latest
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-RUN /root/.cargo/bin/cargo install --git https://github.com/coral-xyz/anchor --tag v0.27.0 anchor-cli --locked
 RUN curl -fsSL https://deb.nodesource.com/setup_23.x | sh
 RUN apt install nodejs -y
 RUN npm install --global yarn
-RUN sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
-
+# install agave
 ENV PATH="/root/.local/share/solana/install/active_release/bin:/root/.cargo/bin:$PATH"
+RUN cargo install --git https://github.com/coral-xyz/anchor avm --force
+RUN avm install 0.27.0 && avm use 0.27.0
+RUN sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
 
 COPY ./solana-deps /solana-deps
 # caching

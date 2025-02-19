@@ -23,3 +23,7 @@ docker-compose up --build
 You can check your localhost at http://127.0.0.1:48334/ to ensure that the challenges are running. Please note that the backend may require more time to set up, so you need to wait for the backend to start.
 
 ![Web Interface](image.png)
+
+## Recomended tools to install
+- https://github.com/foundry-rs/foundry
+- https://github.com/Wrth1/foundpy

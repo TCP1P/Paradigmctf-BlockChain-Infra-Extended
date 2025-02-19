@@ -63,7 +63,7 @@ config = AppConfig()
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 app.config['SESSION_COOKIE_NAME'] = config.SESSION_COOKIE_NAME
-app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_SECURE'] = False
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
