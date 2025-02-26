@@ -15,7 +15,8 @@ describe("setup", () => {
     const tx = await program.methods.initialize().accounts({
       solvedAccount: solveAccountKeypair.publicKey,
       user: provider.wallet.publicKey
-    }).signers([anchor.Wallet.local().payer, solveAccountKeypair]).rpc({"commitment": "finalized"});
-    console.log(JSON.stringify({"message": tx}));
+    }).signers([solveAccountKeypair]).rpc();
+    const signatureResult = await provider.connection.confirmTransaction(tx);
+    console.log(JSON.stringify({"message": signatureResult}));
   });
 });

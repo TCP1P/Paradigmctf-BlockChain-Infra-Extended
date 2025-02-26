@@ -10,7 +10,6 @@ describe("setup", () => {
   const solveAccountKeypair =  Keypair.fromSecretKey(Uint8Array.from(JSON.parse(solvedAccount)))
   anchor.setProvider(provider);
   const program = anchor.workspace.Setup as Program<Setup>;
-
   it("initialize program", async () => {
     const tx = await program.methods.isSolved().accounts({
       solvedAccount: solveAccountKeypair.publicKey,

@@ -4,7 +4,7 @@ import asyncio
 import tempfile
 from pathlib import Path
 from typing import Tuple, Dict
-import toml
+import toml, json
 
 from solana.rpc.async_api import AsyncClient
 from solders.keypair import Keypair  # type: ignore
@@ -17,13 +17,15 @@ CONTRACTS_DIR = Path("setup")
 
 async def execute_test(test, env: Dict[str, str]):
     env.update(os.environ)
-    stdout, _ = await execute("yarn", "run", "ts-mocha", "-p", "./tsconfig.json", "-t", "1000000", "tests/"+test+".ts", cwd=CONTRACTS_DIR, env=env)
+    stdout, stderr = await execute("yarn", "run", "ts-mocha", "-p", "./tsconfig.json", "-t", "1000000", "tests/"+test+".ts", cwd=CONTRACTS_DIR, env=env)
+    print("stderr", stderr)
+    print("stdout", stdout)
     return extract_message(stdout)
 
 def extract_message(stdout: str) -> str:
-    match = re.search(r'{"message": "(.*?)"}', stdout)
+    match = re.search(r'{"message":(.*)}', stdout)
     if match:
-        return match.group(1)
+        return json.loads(match.group(1))
     return ""
 
 async def execute(*args: str, cwd: Path = None, env: Dict[str,str] = os.environ) -> int:

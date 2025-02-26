@@ -28,7 +28,7 @@ from starknet_py.contract import Contract as CairoContract
 from starknet_py.net.account.account import Account as CairoAccount, KeyPair as CairoKeyPair
 from starknet_py.net.full_node_client import FullNodeClient as CairoFullNodeClient
 from solana.rpc.async_api import AsyncClient as SolanaClient
-import solana_helper
+from .solana_helper import is_solved as solana_is_solved
 
 EthAccount.enable_unaudited_hdwallet_features()
 
@@ -402,9 +402,8 @@ class BlockchainManager:
         system_keypair = Keypair.from_base58_string(node_info.accounts[0].private_key)
         context_keypair = Keypair.from_base58_string(node_info.accounts[2].private_key)
         # program_id = Pubkey(node_info.contract_addr)
-        ress = await solana_helper.is_solved(client, system_keypair, context_keypair)
-        print(ress)
-        return True
+        is_solved = await solana_is_solved(client, system_keypair, context_keypair)
+        return is_solved
 
 # Global instance initialization
 BLOCKCHAIN_MANAGER = BlockchainManager(BLOCKCHAIN_TYPE)

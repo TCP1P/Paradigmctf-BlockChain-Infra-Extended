@@ -5,7 +5,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
 # install npm
 RUN curl -fsSL https://deb.nodesource.com/setup_23.x | sh
-RUN apt install nodejs npm -y
+RUN apt install nodejs -y
 RUN npm install --global yarn
 
 # install agave
