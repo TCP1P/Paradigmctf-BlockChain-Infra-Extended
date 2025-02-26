@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 declare_id!("35qSrLjTWNtqytQKN487v5MzRQHnd1HaPqNsChzdiK5D");
 
 #[program]
-pub mod contract {
+pub mod setup {
     use super::*;
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {

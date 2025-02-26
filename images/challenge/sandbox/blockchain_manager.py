@@ -1,3 +1,5 @@
+import base64
+import hashlib
 import os
 import re
 import sys
@@ -19,12 +21,14 @@ from eth_account.hdaccount import generate_mnemonic
 from eth_account.signers.local import LocalAccount as EthLocalAccount
 from solders.pubkey import Pubkey # type: ignore
 from solders.keypair import Keypair # type: ignore
-from anchorpy import Program, Provider, Wallet, Context
+from solana.transaction import Transaction
+from solders.instruction import Instruction, AccountMeta # type: ignore
 from solders.system_program import ID as SYS_PROGRAM_ID
 from starknet_py.contract import Contract as CairoContract
 from starknet_py.net.account.account import Account as CairoAccount, KeyPair as CairoKeyPair
 from starknet_py.net.full_node_client import FullNodeClient as CairoFullNodeClient
 from solana.rpc.async_api import AsyncClient as SolanaClient
+import solana_helper
 
 EthAccount.enable_unaudited_hdwallet_features()
 
@@ -220,7 +224,7 @@ def launch_solana_node(team_id: str) -> NodeInfo:
     while True:
         try:
             subprocess.run(
-                ["solana", "cluster-version", "--url", f"http://localhost:{node_port}"],
+                ["solana", "cluster-version", "--url", f"http://0.0.0.0:{node_port}"],
                 check=True,
                 capture_output=True,
                 timeout=5
@@ -347,7 +351,7 @@ class BlockchainManager:
 
     async def _start_solana_instance(self, team_id: str, deploy_handler):
         node_info = launch_solana_node(team_id)
-        client = SolanaClient(f"http://localhost:{node_info.port}")
+        client = SolanaClient(f"http://0.0.0.0:{node_info.port}")
         
         system_keypair = Keypair.from_base58_string(node_info.accounts[0].private_key)
         player_keypair = Keypair.from_base58_string(node_info.accounts[1].private_key)
@@ -394,22 +398,13 @@ class BlockchainManager:
         return int(call_data.hex(), 16) == 1
 
     async def _check_solana_solution(self, node_info: NodeInfo) -> bool:
-        client = SolanaClient(f"http://localhost:{node_info.port}")
+        client = SolanaClient(f"http://0.0.0.0:{node_info.port}")
         system_keypair = Keypair.from_base58_string(node_info.accounts[0].private_key)
-        provider = Provider(client, Wallet(system_keypair))
-        
-        program = await Program.at(node_info.contract_addr, provider)
-        transaction_signature = await program.rpc['is_solved'](ctx=Context(
-            accounts={
-                "solved_account": Pubkey.from_string(node_info.accounts[2].public_key),
-                "user": provider.wallet.public_key,
-                "system_program": SYS_PROGRAM_ID
-            }
-        ))
-        
-        await client.confirm_transaction(transaction_signature)
-        transaction = await client.get_transaction(transaction_signature)
-        return transaction.value.transaction.meta.return_data.data[0] == 1
+        context_keypair = Keypair.from_base58_string(node_info.accounts[2].private_key)
+        # program_id = Pubkey(node_info.contract_addr)
+        ress = await solana_helper.is_solved(client, system_keypair, context_keypair)
+        print(ress)
+        return True
 
 # Global instance initialization
 BLOCKCHAIN_MANAGER = BlockchainManager(BLOCKCHAIN_TYPE)

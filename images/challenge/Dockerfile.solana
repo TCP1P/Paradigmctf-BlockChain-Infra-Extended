@@ -1,17 +1,25 @@
 FROM gcr.io/paradigmxyz/ctf/base:latest
 
+# install rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+# install npm
 RUN curl -fsSL https://deb.nodesource.com/setup_23.x | sh
-RUN apt install nodejs -y
+RUN apt install nodejs npm -y
 RUN npm install --global yarn
+
 # install agave
 ENV PATH="/root/.local/share/solana/install/active_release/bin:/root/.cargo/bin:$PATH"
 RUN cargo install --git https://github.com/coral-xyz/anchor avm --force
-RUN avm install 0.27.0 && avm use 0.27.0
+
+# install anchor
+RUN avm install latest && avm use latest
+
+# install solana cli
 RUN sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
 
-COPY ./solana-deps /solana-deps
 # caching
+COPY ./solana-deps /solana-deps
 RUN cd /solana-deps && anchor build && rm /solana-deps -rf 
 
 COPY 96-start-launcher /startup

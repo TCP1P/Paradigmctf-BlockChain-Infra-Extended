@@ -1,18 +1,16 @@
-[toolchain]
-
 [features]
-resolution = true
+seeds = false
 skip-lint = false
 
 [programs.localnet]
-contracts = "EqcjL9D15sCqVY4cRLpg3deC9rUELvsPtxopeLXvagCV"
+setup = "35qSrLjTWNtqytQKN487v5MzRQHnd1HaPqNsChzdiK5D"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
 cluster = "Localnet"
-wallet = "~/.config/solana/id.json"
+wallet = "/home/dimas/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
