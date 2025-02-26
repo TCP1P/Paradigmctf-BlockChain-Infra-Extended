@@ -5,3 +5,4 @@ WORKDIR /home/ctf/
 COPY ./deploy/ /home/ctf/
 RUN solana-keygen new --no-passphrase -o /root/.config/solana/id.json --force 
 RUN solana config set -k /root/.config/solana/id.json
+COPY ./tests/* /home/ctf/setup/tests/
