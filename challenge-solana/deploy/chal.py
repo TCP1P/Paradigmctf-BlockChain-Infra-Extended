@@ -7,7 +7,7 @@ from solana.rpc.async_api import AsyncClient
 from solders.keypair import Keypair  # type: ignore
 from interaction import setup
 
-async def deploy_contract(client: AsyncClient, system_kp: Keypair, ctx_kp: Keypair, idl_path: Path, program_name: str, with_idl=False) -> str:
+async def deploy_contract(client: AsyncClient, system_kp: Keypair, ctx_kp: Keypair, idl_path: Path, program_name: str, with_idl=True) -> str:
     """Deploy and initialize the Solana program without AnchorPy.
        Instead of using Anchor's IDL and RPC wrappers, we deploy the binary via CLI
        and then send an initialization transaction manually."""
