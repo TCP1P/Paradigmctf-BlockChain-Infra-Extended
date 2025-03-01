@@ -1,6 +1,7 @@
 .anchor
 .DS_Store
 target
+!setup/target/deploy/*.json
 **/*.rs.bk
 node_modules
 test-ledger

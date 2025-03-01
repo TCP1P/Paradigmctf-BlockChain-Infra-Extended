@@ -1,7 +1,5 @@
 use anchor_lang::prelude::*;
 
-declare_id!("GwzDES36sT6CNqWmbMe9QpfxrAinWPwHvBNBNSfA3ejg");
-
 #[program]
 pub mod setup {
     use super::*;
