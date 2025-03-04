@@ -1,4 +1,4 @@
-FROM gcr.io/paradigmxyz/ctf/solana-base:latest
+FROM dimasmaualana/solana:latest
 
 WORKDIR /home/ctf/
 COPY ./setup/package.json ./setup/package.json

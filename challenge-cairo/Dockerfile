@@ -1,4 +1,4 @@
-FROM gcr.io/paradigmxyz/ctf/cairo-base:latest
+FROM dimasmaualana/cairo:latest
 
 COPY ./deploy/ /home/ctf/
 COPY ./contracts/ /home/ctf/contracts/

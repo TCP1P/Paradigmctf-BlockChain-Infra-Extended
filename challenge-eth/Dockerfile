@@ -1,4 +1,4 @@
-FROM gcr.io/paradigmxyz/ctf/eth-base:latest
+FROM dimasmaualana/eth:latest
 
 COPY deploy/ /home/ctf/
 
