@@ -12,6 +12,7 @@ import subprocess
 from threading import Thread
 from typing import Callable, List, Literal
 from uuid import uuid4
+import shutil
 
 # Third-party imports
 from base58 import b58encode
@@ -47,6 +48,7 @@ INSTANCE_BY_TEAM_DIR = "/tmp/instances-by-team"
 INSTANCE_BY_UUID_DIR = "/tmp/instances-by-uuid"
 os.makedirs(INSTANCE_BY_TEAM_DIR, exist_ok=True)
 os.makedirs(INSTANCE_BY_UUID_DIR, exist_ok=True)
+SYSTEM_KEYPAIR = Keypair()
 
 # Helper functions
 def instance_exists(uuid: str) -> bool:
@@ -67,7 +69,7 @@ def remove_instance_data(node_info: NodeInfo):
     os.remove(f"{INSTANCE_BY_UUID_DIR}/{node_info.uuid}")
     os.remove(f"{INSTANCE_BY_TEAM_DIR}/{node_info.team}")
     try:
-        os.rmdir(f"/home/ctf/{node_info.uuid}")
+        shutil.rmtree(f"/home/ctf/{node_info.uuid}")
     except OSError:
         pass
 
@@ -78,16 +80,17 @@ def save_instance_data(node_info: NodeInfo):
         json.dump(node_info.to_dict(), file)
 
 # Node management functions
-def terminate_node_process(node_info: NodeInfo):
+def terminate_node_process(node_info: NodeInfo, solana=False):
     print(f"Terminating node {node_info.team} {node_info.uuid}")
     remove_instance_data(node_info)
-    os.kill(node_info.pid, signal.SIGTERM)
+    if not solana:
+        os.kill(node_info.pid, signal.SIGTERM)
 
-def schedule_node_termination(node_info: NodeInfo):
+def schedule_node_termination(node_info: NodeInfo, solana=False):
     def termination_task():
         time.sleep(1800)  # 30 minutes
         if instance_exists(node_info.uuid):
-            terminate_node_process(node_info)
+            terminate_node_process(node_info, solana=solana)
     
     termination_thread = Thread(target=termination_task)
     termination_thread.start()
@@ -209,13 +212,14 @@ def launch_ethereum_node(team_id: str) -> NodeInfo:
     schedule_node_termination(node_info)
     return node_info
 
-def launch_solana_node(team_id: str) -> NodeInfo:
-    node_port = random.randint(30000, 60000)
+# for solana we can only deploy one node because it's complicated to setup the faucet port
+async def launch_solana_node(team_id: str) -> NodeInfo:
+    node_port = 3001
     node_uuid = str(uuid4())
 
     # Start Solana test validator
-    validator_process = subprocess.Popen(
-        ["solana-test-validator", "--rpc-port", str(node_port), "--quiet", "--ledger", node_uuid],
+    validator_process = await asyncio.create_subprocess_exec(
+        "solana-test-validator", "--rpc-port", str(node_port), "--ledger", node_uuid,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
     )
@@ -236,7 +240,7 @@ def launch_solana_node(team_id: str) -> NodeInfo:
             time.sleep(0.5)
 
     # Generate keypairs
-    system_keypair = Keypair()
+    system_keypair = SYSTEM_KEYPAIR
     player_keypair = Keypair()
     context_keypair = Keypair()
 
@@ -268,7 +272,7 @@ def launch_solana_node(team_id: str) -> NodeInfo:
         contract_addr=None
     )
 
-    schedule_node_termination(node_info)
+    schedule_node_termination(node_info, solana=True)
     return node_info
 
 # Main blockchain manager class
@@ -350,7 +354,7 @@ class BlockchainManager:
         return node_info
 
     async def _start_solana_instance(self, team_id: str, deploy_handler):
-        node_info = launch_solana_node(team_id)
+        node_info = await launch_solana_node(team_id)
         client = SolanaClient(f"http://0.0.0.0:{node_info.port}")
         
         system_keypair = Keypair.from_base58_string(node_info.accounts[0].private_key)
