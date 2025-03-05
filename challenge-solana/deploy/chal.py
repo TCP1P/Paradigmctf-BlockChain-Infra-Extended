@@ -1,28 +1,29 @@
 import asyncio
 from pathlib import Path
+import pickle
+from typing import Any, Optional
 
 import sandbox
+from sandbox import PersistentStore
 import sandbox.solana_helper as helper
 from solana.rpc.async_api import AsyncClient
 from solders.keypair import Keypair  # type: ignore
 from interaction import setup
 
-# Program is shared between instace
-PROGRAM_ID = None
+# Initialize store
+store = PersistentStore("/tmp/program_state.pickle")
 
 async def deploy_contract(client: AsyncClient, system_kp: Keypair, ctx_kp: Keypair, idl_path: Path, program_name: str, with_idl=True) -> str:
-    global PROGRAM_ID
-    """Deploy and initialize the Solana program without AnchorPy.
-       Instead of using Anchor's IDL and RPC wrappers, we deploy the binary via CLI
-       and then send an initialization transaction manually."""
-    # Deploy the program binary.
-    if not PROGRAM_ID:
-        PROGRAM_ID = await helper.deploy_program(client, system_kp, program_name)
+    store_key = f"program_id_{program_name}"  # Create unique key based on program name
+    program_id = store.get(store_key)
+    if not program_id:
+        program_id = await helper.deploy_program(client, system_kp, program_name)
+        store.set(store_key, program_id)  # Store with unique key
         if with_idl:
             await helper.initialize_idl(client, system_kp, idl_path, program_name)
-    print("program id:", PROGRAM_ID)
+    print("program id:", program_id)
     print("Succesfully initialize the program", await setup(client, system_kp, ctx_kp))
-    return PROGRAM_ID
+    return program_id
 
 async def deploy(client: AsyncClient, system_kp: Keypair, player_kp: Keypair, ctx_kp: Keypair) -> str:
     """Orchestrate the full deployment process.

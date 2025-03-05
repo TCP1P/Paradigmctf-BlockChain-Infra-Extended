@@ -12,7 +12,7 @@ from flask_limiter.util import get_remote_address
 
 from .env import SESSION_COOKIE_NAME, SECRET_KEY # type: ignore
 from .ppow import Challenge, check
-from .blockchain_manager import BLOCKCHAIN_MANAGER, NodeInfo, instance_exists, load_instance
+from .blockchain_manager import BLOCKCHAIN_MANAGER, NodeInfo, instance_exists, load_instance, FileLock, PersistentStore
 
 class AppConfig:
     """Centralized application configuration"""

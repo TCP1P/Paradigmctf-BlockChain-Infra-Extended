@@ -10,9 +10,13 @@ import signal
 import asyncio
 import subprocess
 from threading import Thread
-from typing import Callable, List, Literal
+from typing import Callable, List, Literal, Optional, Any
 from uuid import uuid4
 import shutil
+import pickle
+import threading
+from gunicorn.arbiter import Arbiter
+import fcntl
 
 # Third-party imports
 from base58 import b58encode
@@ -46,9 +50,119 @@ if not BLOCKCHAIN_TYPE:
 # Directory setup
 INSTANCE_BY_TEAM_DIR = "/tmp/instances-by-team"
 INSTANCE_BY_UUID_DIR = "/tmp/instances-by-uuid"
+PICKLE_STATE_FILE = "/tmp/solana_state.pickle"
+LOCK_FILE = "/tmp/solana.lock"
 os.makedirs(INSTANCE_BY_TEAM_DIR, exist_ok=True)
 os.makedirs(INSTANCE_BY_UUID_DIR, exist_ok=True)
-SYSTEM_KEYPAIR = Keypair()
+
+class PersistentStore:
+    def __init__(self, filename: str):
+        self.filename = filename
+        
+    def get(self, key: str) -> Optional[Any]:
+        """Get value from store by key."""
+        try:
+            with open(self.filename, "rb") as f:
+                data = pickle.load(f)
+                return data.get(key)
+        except (FileNotFoundError, pickle.UnpicklingError) as e:
+            print(e)            
+            return None
+            
+    def set(self, key: str, value: Any) -> None:
+        """Set key-value pair in store."""
+        try:
+            with open(self.filename, "rb") as f:
+                data = pickle.load(f)
+        except (FileNotFoundError, pickle.UnpicklingError):
+            data = {}
+            
+        data[key] = value
+        
+        with open(self.filename, "wb") as f:
+            pickle.dump(data, f)
+
+class FileLock:
+    def __init__(self, lock_file):
+        self.lock_file = lock_file
+        self.fd = None
+
+    def __enter__(self):
+        self.fd = open(self.lock_file, 'w')
+        fcntl.flock(self.fd, fcntl.LOCK_EX)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.fd:
+            fcntl.flock(self.fd, fcntl.LOCK_UN)
+            self.fd.close()
+
+def get_solana_state():
+    store = PersistentStore(PICKLE_STATE_FILE)
+    state = store.get('solana_state')
+    if state:
+        return state['validator_pid'], state['system_keypair']
+    return None, None
+
+def save_solana_state(pid, keypair):
+    store = PersistentStore(PICKLE_STATE_FILE)
+    store.set('solana_state', {
+        'validator_pid': pid,
+        'system_keypair': keypair
+    })
+
+async def initialize_solana_validator():
+    global VALIDATOR_PROCESS_ID, SYSTEM_KEYPAIR
+    
+    with FileLock(LOCK_FILE):
+        # Check if another process has already initialized
+        pid, keypair = get_solana_state()
+        if pid is not None:
+            VALIDATOR_PROCESS_ID = pid
+            SYSTEM_KEYPAIR = keypair
+            return
+
+        # Initialize new validator
+        VALIDATOR_PROCESS_ID = None
+        SYSTEM_KEYPAIR = Keypair()
+        
+        node_port = 3001
+        node_uuid = str(uuid4())
+        
+        print("Starting Solana validator...")
+        VALIDATOR_PROCESS_ID = (await asyncio.create_subprocess_exec(
+            "solana-test-validator", "--rpc-port", str(node_port), "--ledger", node_uuid,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )).pid
+        
+        # Save state immediately after getting PID
+        save_solana_state(VALIDATOR_PROCESS_ID, SYSTEM_KEYPAIR)
+
+        # Wait for validator to be ready
+        while True:
+            try:
+                subprocess.run(
+                    ["solana", "cluster-version", "--url", f"http://0.0.0.0:{node_port}"],
+                    check=True,
+                    capture_output=True,
+                    timeout=5
+                )
+                print("Solana validator is ready!")
+                break
+            except subprocess.TimeoutExpired:
+                continue
+            except subprocess.CalledProcessError:
+                await asyncio.sleep(0.5)
+
+# Initialize Solana validator if using Solana
+if BLOCKCHAIN_TYPE == "solana":
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(initialize_solana_validator())
+
+if BLOCKCHAIN_TYPE != "solana":
+    VALIDATOR_PROCESS_ID = None
+    SYSTEM_KEYPAIR = None
 
 # Helper functions
 def instance_exists(uuid: str) -> bool:
@@ -68,10 +182,6 @@ def load_team_instance(team_id: str) -> NodeInfo:
 def remove_instance_data(node_info: NodeInfo):
     os.remove(f"{INSTANCE_BY_UUID_DIR}/{node_info.uuid}")
     os.remove(f"{INSTANCE_BY_TEAM_DIR}/{node_info.team}")
-    try:
-        shutil.rmtree(f"/home/ctf/{node_info.uuid}")
-    except OSError:
-        pass
 
 def save_instance_data(node_info: NodeInfo):
     with open(f"{INSTANCE_BY_UUID_DIR}/{node_info.uuid}", "w") as file:
@@ -80,17 +190,17 @@ def save_instance_data(node_info: NodeInfo):
         json.dump(node_info.to_dict(), file)
 
 # Node management functions
-def terminate_node_process(node_info: NodeInfo, solana=False):
+def terminate_node_process(node_info: NodeInfo):
     print(f"Terminating node {node_info.team} {node_info.uuid}")
     remove_instance_data(node_info)
-    if not solana:
+    if BLOCKCHAIN_TYPE != "solana":
         os.kill(node_info.pid, signal.SIGTERM)
 
-def schedule_node_termination(node_info: NodeInfo, solana=False):
+def schedule_node_termination(node_info: NodeInfo):
     def termination_task():
         time.sleep(1800)  # 30 minutes
         if instance_exists(node_info.uuid):
-            terminate_node_process(node_info, solana=solana)
+            terminate_node_process(node_info)
     
     termination_thread = Thread(target=termination_task)
     termination_thread.start()
@@ -217,28 +327,6 @@ async def launch_solana_node(team_id: str) -> NodeInfo:
     node_port = 3001
     node_uuid = str(uuid4())
 
-    # Start Solana test validator
-    validator_process = await asyncio.create_subprocess_exec(
-        "solana-test-validator", "--rpc-port", str(node_port), "--ledger", node_uuid,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
-
-    # Verify node readiness
-    while True:
-        try:
-            subprocess.run(
-                ["solana", "cluster-version", "--url", f"http://0.0.0.0:{node_port}"],
-                check=True,
-                capture_output=True,
-                timeout=5
-            )
-            break
-        except subprocess.TimeoutExpired:
-            continue
-        except subprocess.CalledProcessError:
-            time.sleep(0.5)
-
     # Generate keypairs
     system_keypair = SYSTEM_KEYPAIR
     player_keypair = Keypair()
@@ -265,14 +353,14 @@ async def launch_solana_node(team_id: str) -> NodeInfo:
     node_info = NodeInfo(
         port=node_port,
         accounts=node_accounts,
-        pid=validator_process.pid,
+        pid=VALIDATOR_PROCESS_ID,
         uuid=node_uuid,
         team=team_id,
         seed=None,
         contract_addr=None
     )
 
-    schedule_node_termination(node_info, solana=True)
+    schedule_node_termination(node_info)
     return node_info
 
 # Main blockchain manager class
