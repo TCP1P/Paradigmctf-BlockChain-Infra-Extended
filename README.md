@@ -1,29 +1,30 @@
-# Paradigmctf BlockChain Infra Extended
+# TCP1P CTF Blockchain Infra
 
-This repository contains the setup from Paradigm CTF blockchain challenges based on the original repository [paradigmxyz](https://github.com/paradigmxyz/paradigm-ctf-infrastructure/tree/master). We've introduced new features, including a web interface and additional challenge setup.
+This repository builds upon the original [paradigmxyz](https://github.com/paradigmxyz/paradigm-ctf-infrastructure/tree/master) infrastructure, adding a slick web interface and extra challenge setups. Think of it as your playground for exploring blockchain vulnerabilities in true CTF style.
 
-## Build Docker Images
+## Docker Setup
 
-To build the required Docker images, navigate to the `images` directory and run the provided build script:
+### Build Images (or Pull from Docker Hub)
+If you prefer pre-built containers, grab them directly from Docker Hub. Otherwise, to build your own Docker images:
 
 ```sh
 cd ./images
 ./build.sh
 ```
 
-## Run Challenges
-
-To run the challenges, use Docker Compose. Navigate to the `challenge` directory and execute the following command:
+### Launching Challenges
+Each challenge runs via Docker Compose. For example, to run the Ethereum challenge:
 
 ```sh
-cd ./challenge
+cd ./challenge-eth
 docker-compose up --build
 ```
 
-You can check your localhost at http://127.0.0.1:48334/ to ensure that the challenges are running. Please note that the backend may require more time to set up, so you need to wait for the backend to start.
+Visit [http://127.0.0.1:48334/](http://127.0.0.1:48334/) in your browser. (Tip: The backend might take a few extra seconds to spin up.)
 
 ![Web Interface](image.png)
 
-## Recomended tools to install
-- https://github.com/foundry-rs/foundry
-- https://github.com/Wrth1/foundpy
+## Recommended Tools for Your Exploits
+
+- **[Foundry](https://github.com/foundry-rs/foundry)** – A fast, flexible toolkit for Ethereum development.
+- **[Foundpy](https://github.com/Wrth1/foundpy)** – Your Python sidekick for blockchain testing and automation.
